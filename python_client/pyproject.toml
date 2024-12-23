@@ -11,6 +11,7 @@ python = "^3.11"
 cs150241project-networking = {git = "https://github.com/UPD-CS150-241/cs150241project_networking"}
 pytest = "^8.3.4"
 ruff = "^0.8.4"
+pygame-ce = "^2.5.2"
 
 
 [build-system]

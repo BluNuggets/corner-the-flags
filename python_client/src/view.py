@@ -208,8 +208,11 @@ class BoardView:
                                 active_piece_index = index
                     if event.button == 3 and active_piece_index != None:
                         print("should reset")
-                        for piece in pieces:
-                            piece.reset_to_spot()
+                        for index,piece in enumerate(pieces):
+                            if active_piece_index == index:
+                                piece.reset_to_spot()  
+                            else:
+                                continue
                         
                         #point active piece index to nothing
                         active_piece_index = None

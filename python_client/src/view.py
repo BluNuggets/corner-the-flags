@@ -75,9 +75,7 @@ class Board:
                     return cell
         return
 
-#todo: protocol for pieces
-#todo: Position type should be implemented
-class Pawn():
+class Piece():
     _position: tuple[int, int]
     _image: Surface
     _collision_box: Rect
@@ -149,6 +147,16 @@ class Pawn():
         self._collision_box.update(self._last_stable_position, (self._size, self._size))
         self._position = self._last_stable_position
 
+#todo: protocol for pieces
+#todo: Position type should be implemented
+class Pawn(Piece):
+    def valid_move(self):
+        pass
+
+class Lance(Piece):
+    def valid_move(self):
+        pass
+
 
 #todo: add screen, fps, frame_count and clock as variables outside run function
 class BoardView:
@@ -170,7 +178,7 @@ class BoardView:
         frame_count = 0
 
         active_piece_index: int | None = None
-        pieces: list[Pawn] = []
+        pieces: list[Piece] = []
         grid: Board = Board(self._width, self._height, 8, 8)
 
         is_running: bool = True
@@ -185,32 +193,41 @@ class BoardView:
         )
 
         looi: Pawn = Pawn(pygame.image.load(os.path.join("src", "assets", "lui_sword.jpg")), 10, 10, grid.cell_length)
+        looi2: Lance = Lance(pygame.image.load(os.path.join("src", "assets", "lui_wink_ed.jpg")), 20, 20, grid.cell_length)
         pieces.append(looi)
+        pieces.append(looi2)
 
         while is_running:
             for event in pygame.event.get():
                 if event.type == pygame.MOUSEBUTTONDOWN:
+                    print(event)
                     if event.button == 1: #left mouse button
                         for index,piece in enumerate(pieces):
                             if piece.collision_box.collidepoint(event.pos):
-                                print("active box hit")
                                 piece.disable_stable
                                 active_piece_index = index
+                    if event.button == 3 and active_piece_index != None:
+                        print("should reset")
+                        for piece in pieces:
+                            piece.reset_to_spot()
+                        
+                        #point active piece index to nothing
+                        active_piece_index = None
 
                 if event.type == pygame.MOUSEBUTTONUP:
-                    print(event)
                     #check which cell to snap to.
                     #note that the position should only snap to one cell (if not, we are in some big trouble)
-                    snap_cell: Rect | None = grid.snap_position(event.pos)
+                    if event.button == 1:
+                        snap_cell: Rect | None = grid.snap_position(event.pos)
 
-                    if active_piece_index != None and snap_cell != None:
-                        pieces[active_piece_index].snap(snap_cell, screen)
-                    elif active_piece_index != None and snap_cell == None:
-                        pieces[active_piece_index].enable_stable
-                        pieces[active_piece_index].reset_to_spot()
-                    
-                    #point active piece index to nothing
-                    active_piece_index = None
+                        if active_piece_index != None and snap_cell != None:
+                            pieces[active_piece_index].snap(snap_cell, screen)
+                        elif active_piece_index != None and snap_cell == None:
+                            pieces[active_piece_index].enable_stable
+                            pieces[active_piece_index].reset_to_spot()
+                        
+                        #point active piece index to nothing
+                        active_piece_index = None
 
                 if event.type == pygame.MOUSEMOTION:
                     if active_piece_index != None:

@@ -81,9 +81,12 @@ class Pawn():
     _position: tuple[int, int]
     _image: Surface
     _collision_box: Rect
+    _last_stable_position: tuple[int, int]
+    _is_stable: bool = True
 
     def __init__(self, image: Surface, x: int, y: int, size: int):
         self._position = (x, y)
+        self._last_stable_position = self._position
         self._size = size
         self._image = pygame.transform.scale(image, (size, size))
         self._collision_box = pygame.Rect(
@@ -99,7 +102,11 @@ class Pawn():
 
     @property
     def image(self):
-        return self._image 
+        return self._image
+
+    @property
+    def is_stable(self):
+        return self._is_stable 
 
     @property
     def collision_box(self):
@@ -125,6 +132,22 @@ class Pawn():
         #update self._position
         self._position = (self._collision_box.x,self._collision_box.y)
         screen.blit(self._image, self._position)
+
+    @property
+    def disable_stable(self):
+        #piece is picked up
+        self._last_stable_position = self._position
+        self._is_stable = False
+    
+    @property
+    def enable_stable(self):
+        #piece is dropped
+        self._is_stable = True
+
+    #return piece to previous spot
+    def reset_to_spot(self):
+        self._collision_box.update(self._last_stable_position, (self._size, self._size))
+        self._position = self._last_stable_position
 
 
 #todo: add screen, fps, frame_count and clock as variables outside run function
@@ -171,22 +194,26 @@ class BoardView:
                         for index,piece in enumerate(pieces):
                             if piece.collision_box.collidepoint(event.pos):
                                 print("active box hit")
+                                piece.disable_stable
                                 active_piece_index = index
 
                 if event.type == pygame.MOUSEBUTTONUP:
+                    print(event)
                     #check which cell to snap to.
                     #note that the position should only snap to one cell (if not, we are in some big trouble)
                     snap_cell: Rect | None = grid.snap_position(event.pos)
 
                     if active_piece_index != None and snap_cell != None:
                         pieces[active_piece_index].snap(snap_cell, screen)
+                    elif active_piece_index != None and snap_cell == None:
+                        pieces[active_piece_index].enable_stable
+                        pieces[active_piece_index].reset_to_spot()
                     
                     #point active piece index to nothing
                     active_piece_index = None
 
                 if event.type == pygame.MOUSEMOTION:
                     if active_piece_index != None:
-                        print(event.rel)
                         pieces[active_piece_index].move(screen, event.rel)
 
                 if event.type == pygame.QUIT:
@@ -198,7 +225,7 @@ class BoardView:
             
             grid.render(screen)
 
-            #captured box (WIP)
+            #todo: captured box
             pygame.draw.rect(screen, "sandybrown", captureBox)
 
             for piece in pieces:

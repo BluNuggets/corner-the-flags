@@ -111,7 +111,6 @@ class Piece():
     _image: Surface
     _collision_box: Rect
     _last_stable_position: tuple[int, int]
-    _is_stable: bool = True
 
     def __init__(self, image: Surface, position: tuple[int, int], size: int):
         self._position = position
@@ -132,10 +131,6 @@ class Piece():
     @property
     def image(self):
         return self._image
-
-    @property
-    def is_stable(self):
-        return self._is_stable 
 
     @property
     def collision_box(self):
@@ -161,17 +156,6 @@ class Piece():
         #update self._position
         self._position = (self._collision_box.x,self._collision_box.y)
         screen.blit(self._image, self._position)
-
-    @property
-    def disable_stable(self):
-        #piece is picked up
-        self._last_stable_position = self._position
-        self._is_stable = False
-    
-    @property
-    def enable_stable(self):
-        #piece is dropped
-        self._is_stable = True
 
     #return piece to previous spot
     def reset_to_spot(self):
@@ -210,6 +194,7 @@ class BoardView:
 
         self.setup_initial_positions(initial_positions)
     
+    # will have to fix this to follow OCP
     def setup_initial_positions(self, init_pos: list[tuple[Location, PieceKind]]):
         for pos in init_pos:
             match pos[1]:
@@ -244,7 +229,6 @@ class BoardView:
                     if event.button == 1: #left mouse button
                         for index,piece in enumerate(self._pieces):
                             if piece.collision_box.collidepoint(event.pos):
-                                piece.disable_stable
                                 active_piece_index = index
                     if event.button == 3 and active_piece_index != None:
                         print("should reset")
@@ -266,7 +250,6 @@ class BoardView:
                         if active_piece_index != None and snap_cell != None:
                             self._pieces[active_piece_index].snap(snap_cell, self._screen)
                         elif active_piece_index != None and snap_cell == None:
-                            self._pieces[active_piece_index].enable_stable
                             self._pieces[active_piece_index].reset_to_spot()
                         
                         #point active piece index to nothing

@@ -34,3 +34,17 @@ class Location:
     @property
     def column(self) -> int:
         return self._column
+
+
+@dataclass
+class PieceData:
+    _piece_kind: PieceKind
+    _location: Location
+
+    @property
+    def piece_kind(self) -> PieceKind:
+        return self._piece_kind
+
+    @property
+    def location(self) -> Location:
+        return self._location

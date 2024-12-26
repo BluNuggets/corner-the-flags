@@ -30,9 +30,7 @@ class Position():
     @property
     def y(self):
         return self._y
-        
     
-#todo: convert some variables to Position type
 class Piece():
     # Note: position is only relative to the size of the screen
     # The piece does not know what location it is on the Board (i.e. A1, B3 are not known by Piece)
@@ -100,9 +98,10 @@ class Grid:
     _cell_length: int
     _center: Location
     _grid: list[list[Rect]] = []
+    _player: Player
     _margin: int = 20
 
-    def __init__(self, s_w: int, s_h: int, dim_x: int, dim_y: int):
+    def __init__(self, s_w: int, s_h: int, dim_x: int, dim_y: int, player: Player):
         self._relative_width = s_w - int(REL_CAPTURED_BOX_WIDTH * s_w)
         self._relative_height = s_h
         self.center = Location(self._relative_width // 2, self._relative_height // 2)
@@ -129,10 +128,8 @@ class Grid:
                         self._cell_length
                     )
                 )
-            #todo: invert when different player
-            #append row to grid
-            self._grid.append(temp_row)
-            #self._grid.insert(0, temp_row)
+            #append row to grid (dependent on Player ID)
+            self._grid.append(temp_row) if self._player == Player.PLAYER_1 else self._grid.insert(0, temp_row)
         return
 
     def center_align(self, num: int, dimension: int, length: int, is_x: bool) -> int:
@@ -183,10 +180,11 @@ class BoardGameView:
     _frame_count: int
     _pieces: list[Piece]
     _grid: Grid
+    _player: Player
 
     _captureBox: Rect
 
-    def __init__(self, width: int, height: int, fps: int, dim_x: int, dim_y: int):
+    def __init__(self, width: int, height: int, fps: int, dim_x: int, dim_y: int, player: int):
         self._width = width
         self._height = height
         self._fps = fps
@@ -194,7 +192,12 @@ class BoardGameView:
         self._clock = pygame.time.Clock()
         self._frame_count = 0
         self._pieces = []
-        self._grid = Grid(self._width, self._height, dim_x, dim_y)
+
+        #todo: setup networking to confirm this works
+        self._player = Player.PLAYER_1 if player == 1 else Player.PLAYER_2
+
+        #grid initialization comes after player initialization
+        self._grid = Grid(self._width, self._height, dim_x, dim_y, self._player)
 
         self.setup_initial_positions()
 

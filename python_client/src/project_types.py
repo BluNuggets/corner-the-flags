@@ -48,3 +48,11 @@ class PieceData:
     @property
     def location(self) -> Location:
         return self._location
+
+    """
+    def move(self, to: Location) -> None:
+        self._location = to
+    """
+
+
+type PlayerPieceData = tuple[Player, PieceData]

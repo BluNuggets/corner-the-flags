@@ -13,6 +13,7 @@ class PieceKind(StrEnum):
     PAWN = 'Pawn'
     LANCE = 'Lance'
 
+#Location class is determining where Piece is in the Grid
 class Location():
     _row: int
     _col: int
@@ -28,24 +29,42 @@ class Location():
     @property
     def y(self):
         return self._col
+
+#Position class is determining where an object is in the screen
+class Position():
+    _x: int
+    _y: int
+
+    def __init__(self, x: int, y: int):
+        self._x = x
+        self._y = y
+
+    @property
+    def x(self):
+        return self._x
+    
+    @property
+    def y(self):
+        return self._y
+        
     
 #todo: convert some variables to Position type
 class Piece():
     # Note: position is only relative to the size of the screen
     # The piece does not know what location it is on the Board (i.e. A1, B3 are not known by Piece)
-    _position: tuple[int, int]
+    _position: Position
     _image: Surface
     _collision_box: Rect
-    _last_stable_position: tuple[int, int]
+    _last_stable_position: Position
 
-    def __init__(self, image: Surface, position: tuple[int, int], size: int):
+    def __init__(self, image: Surface, position: Position, size: int):
         self._position = position
         self._last_stable_position = self._position
         self._size = size
         self._image = pygame.transform.scale(image, (size, size))
         self._collision_box = pygame.Rect(
-            self._position[0],
-            self._position[1],
+            position.x,
+            position.y,
             self._size,
             self._size,
         )
@@ -65,7 +84,7 @@ class Piece():
     def render(self, screen: Surface):
         #Note: it is important to render the collision box BEFORE the image to make the collision box "invisible"
         pygame.draw.rect(screen, "chocolate1", self._collision_box)
-        screen.blit(self._image, self._position)
+        screen.blit(self._image, (self._position.x, self._position.y))
 
     #move both image and collision box using the relative position argument
     def move_rel(self, rel_position: Any):
@@ -73,7 +92,7 @@ class Piece():
         
         #update self._position
         #todo: position type should support basic arithmetic
-        self._position = (self._position[0] + rel_position[0], self._position[1] + rel_position[1])
+        self._position = Position(self._position.x + rel_position[0], self._position.y + rel_position[1])
 
     def move_abs(self, abs_position: Any):
         self._collision_box.move_ip(abs_position)
@@ -81,14 +100,14 @@ class Piece():
         
     def snap(self, cell_to_snap: Rect):
         self.collision_box.clamp_ip(cell_to_snap)
-        self._position = (cell_to_snap.x,cell_to_snap.y)
+        self._position = Position(cell_to_snap.x,cell_to_snap.y)
 
         #update new stable position
         self._last_stable_position = self._position
 
     #return piece to previous spot
     def reset_to_spot(self):
-        self._collision_box.update(self._last_stable_position, (self._size, self._size))
+        self._collision_box.update((self._last_stable_position.x, self._last_stable_position.y), (self._size, self._size))
         self._position = self._last_stable_position
 
 class Pawn(Piece):
@@ -168,17 +187,14 @@ class Grid:
                     return cell
         return
     
-    #todo: convert to Position type
-    def location_to_position(self, loc: Location) -> tuple[int, int]:
-        return (self._grid[loc.x][loc.y].x, self._grid[loc.x][loc.y].y)
+    def location_to_position(self, loc: Location) -> Position:
+        return Position(self._grid[loc.x][loc.y].x, self._grid[loc.x][loc.y].y)
     
-    def move_piece(self, piece: Piece, new_raw_position: Any, screen: Surface):
+    def move_piece(self, piece: Piece, new_raw_position: Any):
         snap_cell: Rect | None = self.snap_position(new_raw_position)
 
         piece.snap(snap_cell) if snap_cell != None else piece.reset_to_spot()
-            
-
-#todo: add screen, fps, frame_count and clock as variables outside run function
+    
 class BoardView:
     _width: int
     _height: int
@@ -261,7 +277,7 @@ class BoardView:
                     #note that the position should only snap to one cell (if not, we are in some big trouble)
                     if event.button == 1 and active_piece_index != None:
                         #move piece in the grid
-                        self._grid.move_piece(self._pieces[active_piece_index], event.pos, self._screen)
+                        self._grid.move_piece(self._pieces[active_piece_index], event.pos)
                         
                         #point active piece index to nothing
                         active_piece_index = None

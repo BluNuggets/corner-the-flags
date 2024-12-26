@@ -1,41 +1,8 @@
 from __future__ import annotations
-from enum import StrEnum
-from typing import Protocol
 from dataclasses import dataclass, field
+from typing import Protocol
 
-
-class Player(StrEnum):
-    PLAYER_1 = "Player 1"
-    PLAYER_2 = "Player 2"
-
-
-class PieceKind(StrEnum):
-    PAWN = "Pawn"
-    KING = "King"
-    LANCE = "Lance"
-
-
-@dataclass
-class Location:
-    _row: int
-    _column: int
-
-    def __hash__(self) -> int:
-        """Hash a Location() instance by hashing a tuple[int,int] that contains the values of .row and .column"""
-        return hash((self._row, self._column))
-
-    def __sub__(self, other: Location) -> Location:
-        """Get the difference of two Location() instances"""
-        return Location(self._row - other.row, self._column - other.column)
-
-    @property
-    def row(self) -> int:
-        return self._row
-
-    @property
-    def column(self) -> int:
-        return self._column
-
+from project_types import Player, PieceKind, Location
 
 # --- MARK: Movement
 

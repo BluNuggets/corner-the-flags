@@ -107,8 +107,8 @@ class Grid:
         self._relative_height = s_h
         self.center = Location(self._relative_width // 2, self._relative_height // 2)
         self._cell_length = min(
-            (self._relative_width - (2 * self._margin)) // dim_x,
-            (self._relative_height - (2 * self._margin)) // dim_y
+            (self._relative_height - (2 * self._margin)) // dim_x,
+            (self._relative_width - (2 * self._margin)) // dim_y
         )
         self.create_grid(dim_x, dim_y)
 
@@ -117,9 +117,9 @@ class Grid:
         return self._cell_length
 
     def create_grid(self, row: int, col: int) -> None:
-        for i in range(col):
+        for i in range(row):
             temp_row: list[Rect] = []
-            for j in range(row):
+            for j in range(col):
                 #append cell to row
                 temp_row.append(
                     pygame.Rect(
@@ -132,6 +132,7 @@ class Grid:
             #todo: invert when different player
             #append row to grid
             self._grid.append(temp_row)
+            #self._grid.insert(0, temp_row)
         return
 
     def center_align(self, num: int, dimension: int, length: int, is_x: bool) -> int:

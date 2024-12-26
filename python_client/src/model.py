@@ -2,7 +2,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from project_types import Player, PieceKind, Location, PieceData
+from project_types import (
+    Player,
+    PieceKind,
+    Location,
+    PieceData,
+    PlayerPieceData,
+    PiecePositions,
+    BoardGamePiecePositions,
+)
 
 # --- MARK: Movement
 
@@ -43,6 +51,12 @@ class Piece(Protocol):
     @property
     def data(self) -> PieceData: ...
 
+    @property
+    def is_protected(self) -> bool: ...
+
+    @property
+    def can_capture(self) -> bool: ...
+
     def can_move(self, to: Location) -> bool: ...
 
     # todo: where should move() go? (see BoardGameModel)
@@ -60,11 +74,24 @@ class RegularPiece:
     def data(self) -> PieceData:
         return self._data
 
+    @property
+    def is_protected(self) -> bool:
+        return self._is_protected
+
+    @property
+    def can_capture(self) -> bool:
+        return self._can_capture
+
     def can_move(self, to: Location) -> bool:
         return to - self._data.location in self._movement.get_deltas()
 
-    def capture(self) -> None:
-        pass
+    """
+    def move(self, to: Location) -> None:
+        if not self.can_move(to):
+            raise ValueError(f'Error: RegularPiece cannot move to square {to}')
+        
+        self._data.move(to)
+    """
 
 
 @dataclass
@@ -78,8 +105,24 @@ class ProtectedPiece:
     def data(self) -> PieceData:
         return self._data
 
+    @property
+    def is_protected(self) -> bool:
+        return self._is_protected
+
+    @property
+    def can_capture(self) -> bool:
+        return self._can_capture
+
     def can_move(self, to: Location) -> bool:
         return to - self._data.location in self._movement.get_deltas()
+
+    """
+    def move(self, to: Location) -> None:
+        if not self.can_move(to):
+            raise ValueError(f'Error: RegularPiece cannot move to square {to}')
+        
+        self._data.move(to)
+    """
 
 
 """
@@ -127,7 +170,7 @@ type PlayerPiece = tuple[Player, Piece]
 class Board:
     _rows: int = field(default=8)
     _columns: int = field(default=8)
-    _pieces: dict[Location, PlayerPiece | None] = field(init=False)
+    _pieces: dict[Location, PlayerPiece] = field(init=False)
 
     @property
     def rows(self) -> int:
@@ -136,6 +179,19 @@ class Board:
     @property
     def columns(self) -> int:
         return self._columns
+
+    @property
+    def piece_data(self) -> dict[Location, PlayerPieceData]:
+        ret: dict[Location, PlayerPieceData] = {}
+
+        for location, player_piece in self._pieces.items():
+            player: Player = player_piece[0]
+            piece: Piece = player_piece[1]
+            piece_data: PieceData = piece.data
+
+            ret[location] = (player, piece_data)
+
+        return ret
 
     def add_piece(self, player: Player, piece: Piece) -> None:
         if not self.is_square_within_bounds(piece.data.location):
@@ -178,39 +234,6 @@ class Board:
         return 1 <= location.row <= self._rows and 1 <= location.column <= self._columns
 
 
-# --- MARK: PiecePositions
-
-
-class PiecePositions(Protocol):
-    def get_positions(self) -> dict[Location, tuple[Player, PieceKind]]: ...
-
-
-class BoardGamePiecePositions:
-    def get_positions(self) -> dict[Location, tuple[Player, PieceKind]]:
-        return {
-            # Player 1
-            Location(2, 1): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 2): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 3): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 4): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 5): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 6): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 7): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 8): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(1, 1): (Player.PLAYER_1, PieceKind.KING),
-            # Player 2
-            Location(7, 1): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 2): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 3): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 4): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 5): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 6): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 7): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 8): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(8, 1): (Player.PLAYER_2, PieceKind.KING),
-        }
-
-
 # --- MARK: Board Game Model
 
 
@@ -239,5 +262,63 @@ class BoardGameModel:
     # todo 2: where should Player info be stored?
     # todo 3: check if Player can move a certain piece
     # todo 4: check if a piece can move to another square (with minimal coupling) (how to tell a piece that there's a piece that cannot be captured?)
-    def move(self) -> None:
-        pass
+    def can_move(self, src: Location, dest: Location) -> bool:
+        # src Location does not exist in board
+        if not self._board.is_square_within_bounds(src):
+            return False
+
+        # dest Location does not exist in board
+        if not self._board.is_square_within_bounds(dest):
+            return False
+
+        # ---
+
+        maybe_src_player_piece: PlayerPiece | None = self._board.get_player_piece(src)
+
+        # no piece exists in src Location
+        if maybe_src_player_piece is None:
+            return False
+
+        src_player: Player = maybe_src_player_piece[0]
+        src_piece: Piece = maybe_src_player_piece[1]
+
+        # piece in src Location cannot reach dest Location
+        if not src_piece.can_move(dest):
+            return False
+
+        # ---
+
+        # a piece can always move to an empty dest Location
+        maybe_dest_player_piece: PlayerPiece | None = self._board.get_player_piece(dest)
+        if maybe_dest_player_piece is None:
+            return True
+
+        dest_player: Player = maybe_dest_player_piece[0]
+        dest_piece: Piece = maybe_dest_player_piece[1]
+
+        # a player cannot capture their own piece
+        if src_player == dest_player:
+            return False
+        # a player can capture an opponent piece if it is not a protected piece
+        else:
+            return not dest_piece.is_protected
+
+    def move(self, src: Location, dest: Location) -> None:
+        if not self.can_move(src, dest):
+            raise Exception("Error: Invalid move was sent.")
+
+        src_player_piece: PlayerPiece | None = self._board.get_player_piece(src)
+        if src_player_piece is None:
+            raise Exception(f"Error: Move was called from empty square {src}.")
+
+        # todo: implement piece move logic
+        # src_piece: Piece = src_player_piece[1]
+        # src_piece.move(dest)
+
+        # ---
+
+        dest_player_piece: PlayerPiece | None = self._board.get_player_piece(dest)
+        if dest_player_piece is None:
+            return
+
+        # todo: implement piece capture logic

@@ -1,34 +1,18 @@
 import pygame
 from pygame import Rect, Surface, Clock
 from typing import Any
-from enum import StrEnum
+from project_types import (
+    Player,
+    PieceKind,
+    Location,
+    BoardGamePiecePositions,
+)
 import sys
 import os
 #import random
 #from cs150241project_networking import CS150241ProjectNetworking
 
 REL_CAPTURED_BOX_WIDTH = 0.15
-
-class PieceKind(StrEnum):
-    PAWN = 'Pawn'
-    LANCE = 'Lance'
-
-#Location class is determining where Piece is in the Grid
-class Location():
-    _row: int
-    _col: int
-
-    def __init__(self, col: int, row: int):
-        self._row = row
-        self._col = col
-
-    @property
-    def x(self):
-        return self._row
-    
-    @property
-    def y(self):
-        return self._col
 
 #Position class is determining where an object is in the screen
 class Position():
@@ -110,14 +94,6 @@ class Piece():
         self._collision_box.update((self._last_stable_position.x, self._last_stable_position.y), (self._size, self._size))
         self._position = self._last_stable_position
 
-class Pawn(Piece):
-    def valid_move(self):
-        pass
-
-class Lance(Piece):
-    def valid_move(self):
-        pass
-
 class Grid:
     _relative_width: int
     _relative_height: int
@@ -141,18 +117,19 @@ class Grid:
         return self._cell_length
 
     def create_grid(self, row: int, col: int) -> None:
-        for i in range(row):
+        for i in range(col):
             temp_row: list[Rect] = []
-            for j in range(col):
+            for j in range(row):
                 #append cell to row
                 temp_row.append(
                     pygame.Rect(
-                        self.center_align(i, row, self._cell_length, True),
-                        self.center_align(j, col, self._cell_length, False),
+                        self.center_align(j, col, self._cell_length, True),
+                        self.center_align(i, row, self._cell_length, False),
                         self._cell_length,
                         self._cell_length
                     )
                 )
+            #todo: invert when different player
             #append row to grid
             self._grid.append(temp_row)
         return
@@ -187,15 +164,16 @@ class Grid:
                     return cell
         return
     
+    #note: location is 1-indexed
     def location_to_position(self, loc: Location) -> Position:
-        return Position(self._grid[loc.x][loc.y].x, self._grid[loc.x][loc.y].y)
+        return Position(self._grid[loc.row-1][loc.column-1].x, self._grid[loc.row-1][loc.column-1].y)
     
     def move_piece(self, piece: Piece, new_raw_position: Any):
         snap_cell: Rect | None = self.snap_position(new_raw_position)
 
         piece.snap(snap_cell) if snap_cell != None else piece.reset_to_spot()
     
-class BoardView:
+class BoardGameView:
     _width: int
     _height: int
     _fps: int
@@ -207,7 +185,7 @@ class BoardView:
 
     _captureBox: Rect
 
-    def __init__(self, width: int, height: int, fps: int, initial_positions: list[tuple[Location, PieceKind]]):
+    def __init__(self, width: int, height: int, fps: int, dim_x: int, dim_y: int):
         self._width = width
         self._height = height
         self._fps = fps
@@ -215,22 +193,26 @@ class BoardView:
         self._clock = pygame.time.Clock()
         self._frame_count = 0
         self._pieces = []
-        #todo: change dimensions based on initial positions here
-        self._grid = Grid(self._width, self._height, 5, 5)
+        self._grid = Grid(self._width, self._height, dim_x, dim_y)
 
-        self.setup_initial_positions(initial_positions)
-    
+        self.setup_initial_positions()
+
     # will have to fix this to follow OCP
-    def setup_initial_positions(self, init_pos: list[tuple[Location, PieceKind]]):
-        for pos in init_pos:
-            match pos[1]:
+    def setup_initial_positions(self):
+        init_pos = BoardGamePiecePositions()
+
+        for (location, player_piece_kind) in init_pos.get_positions().items():
+            match player_piece_kind[1]:
                 case PieceKind.PAWN:
-                    pawn: Pawn = Pawn(pygame.image.load(os.path.join("src", "assets", "lui_sword.jpg")), self._grid.location_to_position(pos[0]), self._grid.cell_length)
+                    pawn: Piece = Piece(pygame.image.load(os.path.join("src", "assets", "lui_sword.jpg")), self._grid.location_to_position(location), self._grid.cell_length)
                     self._pieces.append(pawn)
-                    pass
-                case PieceKind.LANCE:
-                    lance: Lance = Lance(pygame.image.load(os.path.join("src", "assets", "lui_wink_ed.jpg")), self._grid.location_to_position(pos[0]), self._grid.cell_length)
+
+                case PieceKind.KING:
+                    lance: Piece = Piece(pygame.image.load(os.path.join("src", "assets", "lui_wink_ed.jpg")), self._grid.location_to_position(location), self._grid.cell_length)
                     self._pieces.append(lance)
+
+                case PieceKind.LANCE:
+                    pass
 
     def run(self):
         pygame.init()
@@ -308,14 +290,3 @@ class BoardView:
 
         for piece in self._pieces:
             piece.render(self._screen)
-
-
-if __name__ == "__main__":
-    init_pos: list[tuple[Location, PieceKind]] = [
-            (Location(2, 1), PieceKind.PAWN),
-            (Location(3, 0), PieceKind.LANCE),
-            (Location(0, 2), PieceKind.LANCE),
-            (Location(1, 1), PieceKind.PAWN),
-        ]
-    view = BoardView(900, 700, 60, init_pos)
-    view.run()

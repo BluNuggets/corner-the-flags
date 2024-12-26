@@ -170,7 +170,7 @@ type PlayerPiece = tuple[Player, Piece]
 class Board:
     _rows: int = field(default=8)
     _columns: int = field(default=8)
-    _pieces: dict[Location, PlayerPiece] = field(init=False)
+    _pieces: dict[Location, PlayerPiece] = field(default_factory=lambda:{})
 
     @property
     def rows(self) -> int:

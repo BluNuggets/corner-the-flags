@@ -1,11 +1,13 @@
 import pygame
 from pygame import Rect, Surface, Clock
-from typing import Any
+from typing import Any, Protocol
 from project_types import (
     Player,
     PieceKind,
     Location,
     BoardGamePiecePositions,
+    GameState,
+    PieceData
 )
 import sys
 import os
@@ -13,6 +15,9 @@ import os
 #from cs150241project_networking import CS150241ProjectNetworking
 
 REL_CAPTURED_BOX_WIDTH = 0.15
+SCREEN_WIDTH = 1000
+SCREEN_HEIGHT = 700
+FPS = 60
 
 #Position class is determining where an object is in the screen
 class Position():
@@ -34,15 +39,19 @@ class Position():
     def y(self):
         return self._y
     
-class Piece():
+class Piece(PieceData):
     # Note: position is only relative to the size of the screen
     # The piece does not know what location it is on the Board (i.e. A1, B3 are not known by Piece)
+    _piece_kind: PieceKind
+    _location: Location
     _position: Position
     _image: Surface
     _collision_box: Rect
     _last_stable_position: Position
 
-    def __init__(self, image: Surface, position: Position, size: int):
+    def __init__(self, piece_kind: PieceKind, location: Location, image: Surface, position: Position, size: int):
+        self._piece_kind = piece_kind
+        self._location = location
         self._position = position
         self._last_stable_position = self._position
         self._size = size
@@ -53,6 +62,14 @@ class Piece():
             self._size,
             self._size,
         )
+
+    @property
+    def piece_kind(self) -> PieceKind:
+        return self._piece_kind
+
+    @property
+    def location(self) -> Location:
+        return self._location
 
     @property
     def position(self):
@@ -196,7 +213,15 @@ class Grid:
             return None
         else:
             return self.position_to_location(Position(cell.x, cell.y))
-    
+
+class MakeMoveObserver(Protocol):
+    def on_make_move(self, old: Location, new: Location):
+        ...
+
+class GameStateObserver(Protocol):
+    def on_state_change(self, state: GameState):
+        ...
+
 class BoardGameView:
     _width: int
     _height: int
@@ -204,51 +229,62 @@ class BoardGameView:
     _screen: Surface
     _clock: Clock
     _frame_count: int
-    _pieces: list[Piece]
+    _pieces: dict[Location, Piece]
     _grid: Grid
     _player: Player
 
     _captureBox: Rect
 
-    def __init__(self, width: int, height: int, fps: int, dim_x: int, dim_y: int, player: int):
-        self._width = width
-        self._height = height
-        self._fps = fps
+    def __init__(self, state: GameState):
+        self._width = SCREEN_WIDTH
+        self._height = SCREEN_HEIGHT
+        self._fps = FPS
         self._screen = pygame.display.set_mode((self._width, self._height))
         self._clock = pygame.time.Clock()
         self._frame_count = 0
-        self._pieces = []
+        self._pieces = {}
 
         #todo: setup networking to confirm this works
-        self._player = Player.PLAYER_1 if player == 1 else Player.PLAYER_2
+        self._player = state.current_player
 
         #grid initialization comes after player initialization
-        self._grid = Grid(self._width, self._height, dim_x, dim_y, self._player)
+        self._grid = Grid(self._width, self._height, state.board_dimension[0], state.board_dimension[1], self._player)
+        self._setup_initial_positions()
 
-        self.setup_initial_positions()
+        #create observers for controller
+        self._make_move_observers: list[MakeMoveObserver] = []
 
     # will have to fix this to follow OCP
-    def setup_initial_positions(self):
+    def _setup_initial_positions(self):
         init_pos = BoardGamePiecePositions()
 
         for (location, player_piece_kind) in init_pos.get_positions().items():
-            match player_piece_kind[1]:
-                case PieceKind.PAWN:
-                    pawn: Piece = Piece(pygame.image.load(os.path.join("src", "assets", "lui_sword.jpg")), self._grid.location_to_position(location), self._grid.cell_length)
-                    self._pieces.append(pawn)
+            self._pieces[location] = Piece(
+                player_piece_kind[1],
+                location,
+                self._setup_image(player_piece_kind[1]),
+                self._grid.location_to_position(location),
+                self._grid.cell_length
+            )
 
-                case PieceKind.KING:
-                    lance: Piece = Piece(pygame.image.load(os.path.join("src", "assets", "lui_wink_ed.jpg")), self._grid.location_to_position(location), self._grid.cell_length)
-                    self._pieces.append(lance)
-                    print(f"King spawned at {lance.position}")
+    def _setup_image(self, pk: PieceKind) -> Surface:
+        match pk:
+            case PieceKind.PAWN:
+                return pygame.image.load(os.path.join("src", "assets", "lui_sword.jpg"))
+            case PieceKind.KING:
+                return pygame.image.load(os.path.join("src", "assets", "lui_wink_ed.jpg"))
+            case PieceKind.LANCE:
+                return pygame.image.load(os.path.join("src", "assets", "lui_bright.jpg"))
 
-                case PieceKind.LANCE:
-                    pass
+
+    # register move observer (usually from controller)
+    def register_make_move_observer(self, observer: MakeMoveObserver):
+        self._make_move_observers.append(observer)
 
     def run(self):
         pygame.init()
 
-        active_piece_index: int | None = None
+        active_piece_index: Location | None = None
 
         is_running: bool = True
         #font = pygame.font.SysFont("", 24)
@@ -265,18 +301,17 @@ class BoardGameView:
             for event in pygame.event.get():
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1: #left mouse button
-                        for index,piece in enumerate(self._pieces):
+                        for loc in self._pieces.keys():
+                            piece = self._pieces[loc]
                             if piece.collision_box.collidepoint(event.pos):                
-                                # move piece to the end of list
-                                self._pieces.pop(index)
-                                self._pieces.append(piece)
-
-                                active_piece_index = len(self._pieces) - 1
+                                active_piece_index = loc
                                 break
+
                     if event.button == 3 and active_piece_index != None:
                         # print("should reset")
-                        for index,piece in enumerate(self._pieces):
-                            if active_piece_index == index:
+                        for loc in self._pieces.keys():
+                            piece = self._pieces[loc]
+                            if active_piece_index == loc:
                                 piece.reset_to_spot()  
                             else:
                                 continue
@@ -294,11 +329,12 @@ class BoardGameView:
                         new_cell_location: Location | None = self._grid.get_cell_location(snap_cell)
 
                         #todo: validate move through model
-                        if not self.is_move_valid(old_cell_location, new_cell_location):
-                            pass
-
-                        #move piece in the grid
-                        piece.snap(snap_cell) if snap_cell != None else piece.reset_to_spot()
+                        if snap_cell != None and new_cell_location != None:
+                            self._make_move(old_cell_location, new_cell_location)
+                            #move piece in the grid
+                            piece.snap(snap_cell)
+                        else:
+                            piece.reset_to_spot()
                         
                         #point active piece index to nothing
                         active_piece_index = None
@@ -327,12 +363,12 @@ class BoardGameView:
         #todo: captured box
         pygame.draw.rect(self._screen, "sandybrown", self._captureBox)
 
-        for piece in self._pieces:
-            piece.render(self._screen)
+        for loc in self._pieces.keys():
+            self._pieces[loc].render(self._screen)            
+        
+    def _make_move(self, old: Location, new: Location):
+        for observer in self._make_move_observers:
+            observer.on_make_move(old, new)
 
-    def is_move_valid(self, old_cell: Location, new_cell: Location | None) -> bool:
-        if new_cell == None:
-            return False
-        else:
-            print(f"Call model to validate the following: \n    - {old_cell} piece towards {new_cell}")
-            return False
+    def on_state_change(self, state: GameState):
+        self._player = state.current_player

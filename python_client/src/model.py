@@ -176,7 +176,7 @@ class PieceFactory:
 class Board:
     _rows: int = field(default=8)
     _columns: int = field(default=8)
-    _pieces: dict[Location, Piece] = field(init=False)
+    _pieces: dict[Location, Piece] = field(default_factory=dict)
 
     @property
     def rows(self) -> int:

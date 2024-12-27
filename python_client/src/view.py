@@ -16,7 +16,7 @@ import os
 #import random
 #from cs150241project_networking import CS150241ProjectNetworking
 
-REL_CAPTURED_BOX_WIDTH = 0.15
+REL_CAPTURED_BOX_WIDTH = 0.2
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 700
 FPS = 60
@@ -50,8 +50,9 @@ class Piece(PieceData):
     _image: Surface
     _collision_box: Rect
     _last_stable_position: Position
+    _owned_by: Player
 
-    def __init__(self, piece_kind: PieceKind, location: Location, image: Surface, position: Position, size: int):
+    def __init__(self, piece_kind: PieceKind, location: Location, image: Surface, position: Position, size: int, owned_by: Player):
         self._piece_kind = piece_kind
         self._location = location
         self._position = position
@@ -64,6 +65,7 @@ class Piece(PieceData):
             self._size,
             self._size,
         )
+        self._owned_by = owned_by
 
     @property
     def piece_kind(self) -> PieceKind:
@@ -88,6 +90,10 @@ class Piece(PieceData):
     @property
     def collision_box(self):
         return self._collision_box
+    
+    @property
+    def owned_by(self):
+        return self._owned_by
 
     def render(self, screen: Surface):
         #Note: it is important to render the collision box BEFORE the image to make the collision box "invisible"
@@ -270,7 +276,8 @@ class BoardGameView:
                 location,
                 self._setup_image(player_piece_kind[1]),
                 self._grid.location_to_position(location),
-                self._grid.cell_length
+                self._grid.cell_length,
+                player_piece_kind[0],
             )
 
     def _setup_image(self, pk: PieceKind) -> Surface:
@@ -309,7 +316,7 @@ class BoardGameView:
                     if event.button == 1: #left mouse button
                         for loc in self._pieces.keys():
                             piece = self._pieces[loc]
-                            if piece.collision_box.collidepoint(event.pos):                
+                            if piece.collision_box.collidepoint(event.pos) and piece.owned_by == self._player:
                                 active_piece_index = loc
                                 break
 

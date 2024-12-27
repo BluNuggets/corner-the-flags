@@ -37,23 +37,15 @@ class Location:
         return self._column
 
 
-@dataclass
-class PieceData:
+class PieceData(Protocol):
     _piece_kind: PieceKind
     _location: Location
 
     @property
-    def piece_kind(self) -> PieceKind:
-        return self._piece_kind
+    def piece_kind(self) -> PieceKind: ...
 
     @property
-    def location(self) -> Location:
-        return self._location
-
-    """
-    def move(self, to: Location) -> None:
-        self._location = to
-    """
+    def location(self) -> Location: ...
 
 
 type PlayerPieceData = tuple[Player, PieceData]

@@ -6,8 +6,6 @@ from project_types import (
     Player,
     PieceKind,
     Location,
-    PieceData,
-    PlayerPieceData,
     PiecePositions,
     BoardGamePiecePositions,
 )
@@ -43,13 +41,17 @@ class LanceMovement:
 
 
 class Piece(Protocol):
-    _data: PieceData
+    _piece_kind: PieceKind
+    _location: Location
     _movement: Movement
     _is_protected: bool
     _can_capture: bool
 
     @property
-    def data(self) -> PieceData: ...
+    def piece_kind(self) -> PieceKind: ...
+
+    @property
+    def location(self) -> Location: ...
 
     @property
     def is_protected(self) -> bool: ...
@@ -60,19 +62,24 @@ class Piece(Protocol):
     def can_move(self, to: Location) -> bool: ...
 
     # todo: where should move() go? (see BoardGameModel)
-    # def move(self, to: Location): ...
+    # def move(self, dest: Location): ...
 
 
 @dataclass
 class RegularPiece:
-    _data: PieceData
+    _piece_kind: PieceKind
+    _location: Location
     _movement: Movement
     _is_protected: bool = field(init=False, default=False)
     _can_capture: bool = field(init=False, default=True)
 
     @property
-    def data(self) -> PieceData:
-        return self._data
+    def piece_kind(self) -> PieceKind:
+        return self._piece_kind
+
+    @property
+    def location(self) -> Location:
+        return self._location
 
     @property
     def is_protected(self) -> bool:
@@ -83,27 +90,30 @@ class RegularPiece:
         return self._can_capture
 
     def can_move(self, to: Location) -> bool:
-        return to - self._data.location in self._movement.get_deltas()
+        return to - self._location in self._movement.get_deltas()
 
     """
     def move(self, to: Location) -> None:
         if not self.can_move(to):
             raise ValueError(f'Error: RegularPiece cannot move to square {to}')
-        
-        self._data.move(to)
     """
 
 
 @dataclass
 class ProtectedPiece:
-    _data: PieceData
+    _piece_kind: PieceKind
+    _location: Location
     _movement: Movement
     _is_protected: bool = field(init=False, default=True)
     _can_capture: bool = field(init=False, default=False)
 
     @property
-    def data(self) -> PieceData:
-        return self._data
+    def piece_kind(self) -> PieceKind:
+        return self._piece_kind
+
+    @property
+    def location(self) -> Location:
+        return self._location
 
     @property
     def is_protected(self) -> bool:
@@ -114,31 +124,29 @@ class ProtectedPiece:
         return self._can_capture
 
     def can_move(self, to: Location) -> bool:
-        return to - self._data.location in self._movement.get_deltas()
+        return to - self._location in self._movement.get_deltas()
 
     """
     def move(self, to: Location) -> None:
         if not self.can_move(to):
             raise ValueError(f'Error: RegularPiece cannot move to square {to}')
-        
-        self._data.move(to)
     """
 
 
 """
 class Pawn(RegularPiece):
     def __init__(self, location: Location) -> None:
-        super().__init__(PieceData(PieceKind.PAWN, location), PawnMovement())
+        super().__init__(PieceKind.PAWN, location, PawnMovement())
 
 
 class King(ProtectedPiece):
     def __init__(self, location: Location) -> None:
-        super().__init__(PieceData(PieceKind.KING, location), KingMovement())
+        super().__init__(PieceKind.KING, location, KingMovement())
 
 
 class Lance(RegularPiece):
     def __init__(self, location: Location) -> None:
-        super().__init__(PieceData(PieceKind.LANCE, location), LanceMovement())
+        super().__init__(PieceKind.LANCE, location, LanceMovement())
 """
 
 
@@ -150,15 +158,11 @@ class PieceFactory:
     def make(cls, piece_kind: PieceKind, location: Location) -> Piece:
         match piece_kind:
             case PieceKind.PAWN:
-                return RegularPiece(PieceData(PieceKind.PAWN, location), PawnMovement())
+                return RegularPiece(PieceKind.PAWN, location, PawnMovement())
             case PieceKind.KING:
-                return ProtectedPiece(
-                    PieceData(PieceKind.KING, location), KingMovement()
-                )
+                return ProtectedPiece(PieceKind.KING, location, KingMovement())
             case PieceKind.LANCE:
-                return RegularPiece(
-                    PieceData(PieceKind.LANCE, location), LanceMovement()
-                )
+                return RegularPiece(PieceKind.LANCE, location, LanceMovement())
 
 
 # --- MARK: Board
@@ -181,30 +185,21 @@ class Board:
         return self._columns
 
     @property
-    def piece_data(self) -> dict[Location, PlayerPieceData]:
-        ret: dict[Location, PlayerPieceData] = {}
-
-        for location, player_piece in self._pieces.items():
-            player: Player = player_piece[0]
-            piece: Piece = player_piece[1]
-            piece_data: PieceData = piece.data
-
-            ret[location] = (player, piece_data)
-
-        return ret
+    def pieces(self) -> dict[Location, PlayerPiece]:
+        return self._pieces
 
     def add_piece(self, player: Player, piece: Piece) -> None:
-        if not self.is_square_within_bounds(piece.data.location):
+        if not self.is_square_within_bounds(piece.location):
             raise IndexError(
                 "Error: Attempted to add a piece to an out of bounds location on the board."
             )
 
-        if not self.is_square_empty(piece.data.location):
+        if not self.is_square_empty(piece.location):
             raise Exception(
                 "Error: Attempted to add a piece to a non-empty board square."
             )
 
-        self._pieces[piece.data.location] = (player, piece)
+        self._pieces[piece.location] = (player, piece)
 
     def get_player_piece(self, location: Location) -> PlayerPiece | None:
         if not self.is_square_within_bounds(location):

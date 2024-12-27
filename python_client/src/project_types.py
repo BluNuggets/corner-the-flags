@@ -20,6 +20,9 @@ class Location:
     _row: int
     _column: int
 
+    def __copy__(self) -> Location:
+        return Location(self._row, self._column)
+
     def __hash__(self) -> int:
         """Hash a Location() instance by hashing a tuple[int,int] that contains the values of .row and .column"""
         return hash((self._row, self._column))

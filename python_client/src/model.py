@@ -1,4 +1,5 @@
 from __future__ import annotations
+import copy
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -20,7 +21,8 @@ class Movement(Protocol):
 class PlayerOnePawnMovement:
     def get_deltas(self) -> set[Location]:
         return {Location(1, 0)}
-            
+
+
 class PlayerTwoPawnMovement:
     def get_deltas(self) -> set[Location]:
         return {Location(-1, 0)}
@@ -67,10 +69,9 @@ class Piece(Protocol):
     @property
     def can_capture(self) -> bool: ...
 
-    def can_move(self, to: Location) -> bool: ...
+    def can_move(self, dest: Location) -> bool: ...
 
-    # todo: where should move() go? (see BoardGameModel)
-    # def move(self, dest: Location): ...
+    def move(self, dest: Location): ...
 
 
 @dataclass
@@ -102,14 +103,14 @@ class RegularPiece:
     def can_capture(self) -> bool:
         return self._can_capture
 
-    def can_move(self, to: Location) -> bool:
-        return to - self._location in self._movement.get_deltas()
+    def can_move(self, dest: Location) -> bool:
+        return dest - self._location in self._movement.get_deltas()
 
-    """
-    def move(self, to: Location) -> None:
-        if not self.can_move(to):
-            raise ValueError(f'Error: RegularPiece cannot move to square {to}')
-    """
+    def move(self, dest: Location) -> None:
+        if not self.can_move(dest):
+            raise ValueError(f"Error: RegularPiece cannot move to square {dest}")
+
+        self._location = copy.copy(dest)
 
 
 @dataclass
@@ -124,7 +125,7 @@ class ProtectedPiece:
     @property
     def player(self) -> Player:
         return self.player
-    
+
     @property
     def piece_kind(self) -> PieceKind:
         return self._piece_kind
@@ -141,14 +142,15 @@ class ProtectedPiece:
     def can_capture(self) -> bool:
         return self._can_capture
 
-    def can_move(self, to: Location) -> bool:
-        return to - self._location in self._movement.get_deltas()
+    def can_move(self, dest: Location) -> bool:
+        return dest - self._location in self._movement.get_deltas()
 
-    """
-    def move(self, to: Location) -> None:
-        if not self.can_move(to):
-            raise ValueError(f'Error: RegularPiece cannot move to square {to}')
-    """
+    def move(self, dest: Location) -> None:
+        if not self.can_move(dest):
+            raise ValueError(f"Error: RegularPiece cannot move to square {dest}")
+
+        self._location = copy.copy(dest)
+
 
 # --- MARK: PieceFactory
 
@@ -160,9 +162,13 @@ class PieceFactory:
             case PieceKind.PAWN:
                 match player:
                     case Player.PLAYER_1:
-                        return RegularPiece(player, PieceKind.PAWN, location, PlayerOnePawnMovement())
+                        return RegularPiece(
+                            player, PieceKind.PAWN, location, PlayerOnePawnMovement()
+                        )
                     case Player.PLAYER_2:
-                        return RegularPiece(player, PieceKind.PAWN, location, PlayerTwoPawnMovement())
+                        return RegularPiece(
+                            player, PieceKind.PAWN, location, PlayerTwoPawnMovement()
+                        )
             case PieceKind.KING:
                 return ProtectedPiece(player, PieceKind.KING, location, KingMovement())
             case PieceKind.LANCE:
@@ -255,10 +261,8 @@ class BoardGameModel:
             piece: Piece = PieceFactory.make(player, piece_kind, location)
             self._board.add_piece(piece)
 
-    # todo 1: where should move() go? (see Piece)
-    # todo 2: where should Player info be stored?
-    # todo 3: check if Player can move a certain piece
-    # todo 4: check if a piece can move to another square (with minimal coupling) (how to tell a piece that there's a piece that cannot be captured?)
+    # todo 1: check if Player can move a certain piece
+    # todo 2: possibly add player to model fields
     def can_move(self, src: Location, dest: Location) -> bool:
         # src Location does not exist in board
         if not self._board.is_square_within_bounds(src):
@@ -302,8 +306,7 @@ class BoardGameModel:
         if src_piece is None:
             raise Exception(f"Error: Move was called from empty square {src}.")
 
-        # todo: implement piece move logic
-        # src_piece.move(dest)
+        src_piece.move(dest)
 
         # ---
 

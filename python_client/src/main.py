@@ -25,7 +25,7 @@ class BoardGameController:
 def main() -> None:
     # networking: CS150241ProjectNetworking = CS150241ProjectNetworking.connect("localhost", 15000)
     model: BoardGameModel = BoardGameModel(Board(8, 8))
-    view: BoardGameView = BoardGameView(900, 700, 60, 8, 8)
+    view: BoardGameView = BoardGameView(1000, 700, 60, 8, 8, 1)
     controller: BoardGameController = BoardGameController(model, view)
 
     controller.start()

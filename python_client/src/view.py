@@ -23,6 +23,9 @@ class Position():
         self._x = x
         self._y = y
 
+    def __repr__(self):
+        return f"{self._x, self._y}"
+
     @property
     def x(self):
         return self._x
@@ -95,8 +98,9 @@ class Piece():
 class Grid:
     _relative_width: int
     _relative_height: int
+    _dim_x: int
+    _dim_y: int
     _cell_length: int
-    _center: Location
     _grid: list[list[Rect]] = []
     _player: Player
     _margin: int = 20
@@ -104,11 +108,13 @@ class Grid:
     def __init__(self, s_w: int, s_h: int, dim_x: int, dim_y: int, player: Player):
         self._relative_width = s_w - int(REL_CAPTURED_BOX_WIDTH * s_w)
         self._relative_height = s_h
-        self.center = Location(self._relative_width // 2, self._relative_height // 2)
         self._cell_length = min(
             (self._relative_height - (2 * self._margin)) // dim_x,
             (self._relative_width - (2 * self._margin)) // dim_y
         )
+        self._dim_x = dim_x
+        self._dim_y = dim_y
+        self._player = player
         self.create_grid(dim_x, dim_y)
 
     @property
@@ -129,7 +135,7 @@ class Grid:
                     )
                 )
             #append row to grid (dependent on Player ID)
-            self._grid.append(temp_row) if self._player == Player.PLAYER_1 else self._grid.insert(0, temp_row)
+            self._grid.append(temp_row) if self._player == Player.PLAYER_2 else self._grid.insert(0, temp_row)
         return
 
     def center_align(self, num: int, dimension: int, length: int, is_x: bool) -> int:
@@ -148,7 +154,7 @@ class Grid:
     def render(self, screen: Surface):
         for ith,row in enumerate(self._grid):
             for jth,col in enumerate(row):
-                # following chess.com format (LOL) 
+                # following chess.com format (LOL)
                 if (ith % 2 == 0 and jth % 2 == 0) or (ith % 2 != 0 and jth % 2 != 0):
                     pygame.draw.rect(screen, "lightyellow", col)
                 else:
@@ -164,12 +170,29 @@ class Grid:
     
     #note: location is 1-indexed
     def location_to_position(self, loc: Location) -> Position:
-        return Position(self._grid[loc.row-1][loc.column-1].x, self._grid[loc.row-1][loc.column-1].y)
+        return Position(
+            self._grid[loc.row-1][loc.column-1].x,
+            self._grid[loc.row-1][loc.column-1].y
+        )
     
-    def move_piece(self, piece: Piece, new_raw_position: Any):
-        snap_cell: Rect | None = self.snap_position(new_raw_position)
+    def position_to_location(self, pos: Position) -> Location:
+        zero_zero_location = (self._grid[0][0].x, self._grid[0][0].y)
+        # return location based on player_id (due to a flipped board)
+        return Location(
+                ((pos.y - zero_zero_location[1]) // self._cell_length) + 1,
+                ((pos.x - zero_zero_location[0]) // self._cell_length) + 1
+            ) if self._player == Player.PLAYER_2 else \
+            Location(
+                ((zero_zero_location[1] - pos.y) // self._cell_length) + 1,
+                ((pos.x - zero_zero_location[0]) // self._cell_length) + 1
+            )
 
-        piece.snap(snap_cell) if snap_cell != None else piece.reset_to_spot()
+    def move_piece(self, piece: Piece, snap_cell: Rect | None):
+        if snap_cell != None:
+            print(self.position_to_location(Position(snap_cell.x, snap_cell.y)))
+            piece.snap(snap_cell)
+        else:
+            piece.reset_to_spot()
     
 class BoardGameView:
     _width: int
@@ -214,6 +237,7 @@ class BoardGameView:
                 case PieceKind.KING:
                     lance: Piece = Piece(pygame.image.load(os.path.join("src", "assets", "lui_wink_ed.jpg")), self._grid.location_to_position(location), self._grid.cell_length)
                     self._pieces.append(lance)
+                    print(f"King spawned at {lance.position}")
 
                 case PieceKind.LANCE:
                     pass
@@ -262,8 +286,16 @@ class BoardGameView:
                     #check which cell to snap to.
                     #note that the position should only snap to one cell (if not, we are in some big trouble)
                     if event.button == 1 and active_piece_index != None:
+                        piece: Piece = self._pieces[active_piece_index]
+                        snap_cell: Rect | None = self._grid.snap_position(event.pos)
+
+                        #todo: validate move through model
+                        if not self.is_move_valid(snap_cell):
+                            pass
+                        
                         #move piece in the grid
-                        self._grid.move_piece(self._pieces[active_piece_index], event.pos)
+                        if snap_cell != None:
+                            self._grid.move_piece(piece, snap_cell)
                         
                         #point active piece index to nothing
                         active_piece_index = None
@@ -294,3 +326,6 @@ class BoardGameView:
 
         for piece in self._pieces:
             piece.render(self._screen)
+
+    def is_move_valid(self, cell: Rect | None) -> bool:
+        return False

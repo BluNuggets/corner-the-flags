@@ -57,6 +57,10 @@ class Piece():
     @property
     def position(self):
         return self._position
+    
+    @property
+    def last_stable_position(self):
+        return self._last_stable_position
 
     @property
     def image(self):
@@ -187,12 +191,11 @@ class Grid:
                 ((pos.x - zero_zero_location[0]) // self._cell_length) + 1
             )
 
-    def move_piece(self, piece: Piece, snap_cell: Rect | None):
-        if snap_cell != None:
-            print(self.position_to_location(Position(snap_cell.x, snap_cell.y)))
-            piece.snap(snap_cell)
+    def get_cell_location(self, cell: Rect | None) -> Location | None:
+        if cell == None:
+            return None
         else:
-            piece.reset_to_spot()
+            return self.position_to_location(Position(cell.x, cell.y))
     
 class BoardGameView:
     _width: int
@@ -261,7 +264,6 @@ class BoardGameView:
         while is_running:
             for event in pygame.event.get():
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    print(event)
                     if event.button == 1: #left mouse button
                         for index,piece in enumerate(self._pieces):
                             if piece.collision_box.collidepoint(event.pos):                
@@ -272,7 +274,7 @@ class BoardGameView:
                                 active_piece_index = len(self._pieces) - 1
                                 break
                     if event.button == 3 and active_piece_index != None:
-                        print("should reset")
+                        # print("should reset")
                         for index,piece in enumerate(self._pieces):
                             if active_piece_index == index:
                                 piece.reset_to_spot()  
@@ -287,15 +289,16 @@ class BoardGameView:
                     #note that the position should only snap to one cell (if not, we are in some big trouble)
                     if event.button == 1 and active_piece_index != None:
                         piece: Piece = self._pieces[active_piece_index]
+                        old_cell_location: Location = self._grid.position_to_location(piece.last_stable_position)
                         snap_cell: Rect | None = self._grid.snap_position(event.pos)
+                        new_cell_location: Location | None = self._grid.get_cell_location(snap_cell)
 
                         #todo: validate move through model
-                        if not self.is_move_valid(snap_cell):
+                        if not self.is_move_valid(old_cell_location, new_cell_location):
                             pass
-                        
+
                         #move piece in the grid
-                        if snap_cell != None:
-                            self._grid.move_piece(piece, snap_cell)
+                        piece.snap(snap_cell) if snap_cell != None else piece.reset_to_spot()
                         
                         #point active piece index to nothing
                         active_piece_index = None
@@ -327,5 +330,9 @@ class BoardGameView:
         for piece in self._pieces:
             piece.render(self._screen)
 
-    def is_move_valid(self, cell: Rect | None) -> bool:
-        return False
+    def is_move_valid(self, old_cell: Location, new_cell: Location | None) -> bool:
+        if new_cell == None:
+            return False
+        else:
+            print(f"Call model to validate the following: \n    - {old_cell} piece towards {new_cell}")
+            return False

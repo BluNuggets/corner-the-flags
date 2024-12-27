@@ -1,6 +1,6 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Protocol
+from dataclasses import dataclass, field, replace
+from typing import Protocol, Self
 
 from project_types import (
     Player,
@@ -10,6 +10,9 @@ from project_types import (
     PlayerPieceData,
     PiecePositions,
     BoardGamePiecePositions,
+    GameState,
+    Feedback,
+    FeedbackInfo
 )
 
 # --- MARK: Movement
@@ -211,8 +214,8 @@ class Board:
             raise IndexError(
                 "Error: Attempted to get a piece from an out of bounds location on the board."
             )
-
-        return self._pieces[location]
+        
+        return self._pieces[location] if self._pieces.get(location) else None
 
     def remove_piece(self, location: Location) -> None:
         if not self.is_square_within_bounds(location):
@@ -241,10 +244,22 @@ class Board:
 class BoardGameModel:
     _board: Board
     _piece_positions: PiecePositions
+    _state: GameState
 
-    def __init__(self, board: Board) -> None:
+    #set default settings of Board
+    @classmethod
+    def default_board(cls) -> Self:
+        state = GameState(
+            current_player = Player.PLAYER_1,
+            board_dimension = (8,8),
+        )
+
+        return cls(Board(8,8), state)
+    
+    def __init__(self, board: Board, state: GameState) -> None:
         self._board = board
         self._piece_positions = BoardGamePiecePositions()
+        self._state = state
 
         self._setup_board()
 
@@ -322,3 +337,26 @@ class BoardGameModel:
             return
 
         # todo: implement piece capture logic
+    
+    def move_from_view(self, src: Location, dest: Location, player: Player) -> Feedback:
+        if self.can_move(src, dest):
+            # todo: update state as well
+            self.move(src, dest)
+            return Feedback(
+                move = (src, dest),
+                info = FeedbackInfo.VALID
+            )
+        elif player != self._state.current_player:
+            return Feedback(
+                move = (src, dest),
+                info = FeedbackInfo.NOT_CURRENT_PLAYER
+            )
+        else:
+            return Feedback(
+                move = (src, dest),
+                info = FeedbackInfo.INVALID
+            )
+
+    @property
+    def state(self) -> GameState:
+        return replace(self._state)

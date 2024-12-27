@@ -7,7 +7,9 @@ from project_types import (
     Location,
     BoardGamePiecePositions,
     GameState,
-    PieceData
+    PieceData,
+    Feedback,
+    FeedbackInfo
 )
 import sys
 import os
@@ -215,7 +217,7 @@ class Grid:
             return self.position_to_location(Position(cell.x, cell.y))
 
 class MakeMoveObserver(Protocol):
-    def on_make_move(self, old: Location, new: Location):
+    def on_make_move(self, old: Location, new: Location, player: Player):
         ...
 
 class GameStateObserver(Protocol):
@@ -232,8 +234,10 @@ class BoardGameView:
     _pieces: dict[Location, Piece]
     _grid: Grid
     _player: Player
+    _nth_action: int
 
     _captureBox: Rect
+    _active_cell_to_snap: Rect | None
 
     def __init__(self, state: GameState):
         self._width = SCREEN_WIDTH
@@ -253,6 +257,8 @@ class BoardGameView:
 
         #create observers for controller
         self._make_move_observers: list[MakeMoveObserver] = []
+
+        self._active_cell_to_snap = None
 
     # will have to fix this to follow OCP
     def _setup_initial_positions(self):
@@ -330,13 +336,13 @@ class BoardGameView:
 
                         #todo: validate move through model
                         if snap_cell != None and new_cell_location != None:
+                            self._active_cell_to_snap = snap_cell
                             self._make_move(old_cell_location, new_cell_location)
-                            #move piece in the grid
-                            piece.snap(snap_cell)
                         else:
                             piece.reset_to_spot()
                         
                         #point active piece index to nothing
+                        self._active_cell_to_snap = None
                         active_piece_index = None
 
                 if event.type == pygame.MOUSEMOTION:
@@ -368,7 +374,26 @@ class BoardGameView:
         
     def _make_move(self, old: Location, new: Location):
         for observer in self._make_move_observers:
-            observer.on_make_move(old, new)
+            observer.on_make_move(old, new, self._player)
+
+    def update_move(self, fb: Feedback):
+        active_piece = self._pieces[fb.move[0]]
+        match fb.info:
+            case FeedbackInfo.VALID:
+                #remove piece from prev location
+                self._pieces.pop(fb.move[0])
+                #set piece to new location
+                self._pieces[fb.move[1]] = active_piece
+
+                #snap to location
+                if self._active_cell_to_snap != None:
+                    self._pieces[fb.move[1]].snap(self._active_cell_to_snap)
+
+            case FeedbackInfo.NOT_CURRENT_PLAYER:
+                self._pieces[fb.move[0]].reset_to_spot()
+
+            case FeedbackInfo.INVALID:
+                self._pieces[fb.move[0]].reset_to_spot()
 
     def on_state_change(self, state: GameState):
         self._player = state.current_player

@@ -1,7 +1,7 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, replace, field
 from enum import StrEnum
-from typing import Protocol
+from typing import Protocol, Self, TypedDict
 
 
 class Player(StrEnum):
@@ -58,7 +58,6 @@ class PieceData:
 
 type PlayerPieceData = tuple[Player, PieceData]
 
-
 # todo: does this stay here in project_types?
 # --- MARK: PiecePositions
 
@@ -91,3 +90,41 @@ class BoardGamePiecePositions:
             Location(7, 8): (Player.PLAYER_2, PieceKind.PAWN),
             Location(8, 1): (Player.PLAYER_2, PieceKind.KING),
         }
+
+
+# --- MARK: Game State
+# todo: what constitutes as an "invalid game state"?
+@dataclass(frozen=True)
+class GameState:
+    current_player: Player
+    board_dimension: tuple[int, int]
+    moves: list[str] = field (init=False, default_factory=list)
+
+    class Props(TypedDict, total=False):
+        current_player: Player
+
+    def next_turn(self) -> Self:
+        return self.to({
+            'current_player': Player.PLAYER_1,
+        }) if self.current_player == Player.PLAYER_2 \
+        else self.to({
+            'current_player': Player.PLAYER_2,
+        })
+    
+    def to(self, props: Props) -> Self:
+        ret = replace(self, **props)
+
+        #if not ret.is_valid_state():
+            #raise RuntimeError(f'Invalid game state: {ret}')
+
+        return ret
+
+class FeedbackInfo(StrEnum):
+    VALID = 'Valid'
+    NOT_CURRENT_PLAYER = 'Not current player'
+    INVALID = 'Invalid'
+
+@dataclass(frozen=True)
+class Feedback:
+    move: tuple[Location, Location]
+    info: FeedbackInfo

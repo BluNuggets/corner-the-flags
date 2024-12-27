@@ -239,13 +239,14 @@ class BoardGameView:
     _frame_count: int
     _pieces: dict[Location, Piece]
     _grid: Grid
+    _current_player: Player
     _player: Player
     _nth_action: int
 
     _captureBox: Rect
     _active_cell_to_snap: Rect | None
 
-    def __init__(self, state: GameState):
+    def __init__(self, state: GameState, player: int):
         self._width = SCREEN_WIDTH
         self._height = SCREEN_HEIGHT
         self._fps = FPS
@@ -255,7 +256,8 @@ class BoardGameView:
         self._pieces = {}
 
         #todo: setup networking to confirm this works
-        self._player = state.current_player
+        self._current_player = state.current_player
+        self._player = Player.PLAYER_1 if player == 1 else Player.PLAYER_2
 
         #grid initialization comes after player initialization
         self._grid = Grid(self._width, self._height, state.board_dimension[0], state.board_dimension[1], self._player)

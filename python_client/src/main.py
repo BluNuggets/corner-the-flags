@@ -44,7 +44,7 @@ class BoardGameController:
 def main() -> None:
     # networking: CS150241ProjectNetworking = CS150241ProjectNetworking.connect("localhost", 15000)
     model: BoardGameModel = BoardGameModel.default_board()
-    view: BoardGameView = BoardGameView(model.state)
+    view: BoardGameView = BoardGameView(model.state, 1)
     controller: BoardGameController = BoardGameController(model, view)
 
     controller.start()

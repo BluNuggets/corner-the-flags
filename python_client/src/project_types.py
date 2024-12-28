@@ -1,7 +1,8 @@
 from __future__ import annotations
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from enum import StrEnum
-from typing import ClassVar, Protocol
+from typing import Protocol
 
 # --- MARK: GameStatus
 
@@ -18,21 +19,21 @@ class GameStatus(StrEnum):
 
 @dataclass(frozen=True)
 class GameState:
-    # constants
-    MAX_MOVES: ClassVar[int] = 3
+    # "constants"
+    max_moves: int
     # fields
-    captured_pieces: dict[Player, list[PieceKind]]
+    captured_pieces: Mapping[Player, Sequence[PieceKind]]
     player_to_move: Player
     turn: int
     move: int
 
     def new_game(self) -> GameState:
-        return GameState(
-            captured_pieces={}, player_to_move=Player.PLAYER_1, turn=1, move=1
+        return replace(
+            self, captured_pieces={}, player_to_move=Player.PLAYER_1, turn=1, move=1
         )
 
     def next_move(self) -> GameState:
-        if self.move < GameState.MAX_MOVES:
+        if self.move < GameState.max_moves:
             return replace(self, move=self.move + 1)
         else:
             match self.player_to_move:

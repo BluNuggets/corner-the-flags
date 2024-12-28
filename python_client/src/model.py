@@ -1,4 +1,5 @@
 from __future__ import annotations
+from cs150241project_networking.main import PlayerId
 import copy
 from dataclasses import dataclass, field
 from typing import Protocol
@@ -273,6 +274,7 @@ class BoardSetter:
 
 
 class Model(Protocol):
+    _player: Player
     _state: GameState
     _board: Board
     _piece_positions: PiecePositions
@@ -286,28 +288,46 @@ class Model(Protocol):
 
 # todo: rename BoardGameModel with actual board game name
 class BoardGameModel:
-    # _player: Player
+    _player: Player
     _state: GameState
     _board: Board
     _board_setter: BoardSetter
 
     @classmethod
-    def setup_game(cls) -> BoardGameModel:
+    def setup_game(cls, player_id: PlayerId) -> BoardGameModel:
+        board = Board(8, 8)
+
         state = GameState(
-            captured_pieces={}, player_to_move=Player.PLAYER_1, turn=1, move=1
+            max_moves=3,
+            captured_pieces={},
+            player_to_move=Player.PLAYER_1,
+            turn=1,
+            move=1,
         )
 
         return cls(
-            state, Board(8, 8), BoardGamePiecePositions(), BoardGamePieceFactory()
+            player_id,
+            state,
+            board,
+            BoardGamePiecePositions(),
+            BoardGamePieceFactory(),
         )
 
     def __init__(
         self,
+        player_id: PlayerId,
         state: GameState,
         board: Board,
         piece_positions: PiecePositions,
         piece_factory: PieceFactory,
     ) -> None:
+        match player_id:
+            case 1:
+                self._player = Player.PLAYER_1
+            case 2:
+                self._player = Player.PLAYER_2
+            case _:
+                raise ValueError("Error: BoardGameModel received invalid player ID.")
         self._state = state
         self._board = board
         self._board_setter = BoardSetter(piece_positions, piece_factory)

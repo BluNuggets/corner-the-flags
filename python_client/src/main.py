@@ -1,4 +1,5 @@
-# from cs150241project_networking import CS150241ProjectNetworking
+from cs150241project_networking import CS150241ProjectNetworking
+from cs150241project_networking.main import PlayerId
 from model import BoardGameModel
 
 
@@ -16,11 +17,13 @@ class BoardGameController:
 
 
 def main() -> None:
-    # networking: CS150241ProjectNetworking = CS150241ProjectNetworking.connect("localhost", 15000)
+    networking: CS150241ProjectNetworking = CS150241ProjectNetworking.connect(
+        "localhost", 15000
+    )
+    player_id: PlayerId = networking.player_id if PlayerId else PlayerId(1)
 
-    model: BoardGameModel = BoardGameModel.setup_game()
+    model: BoardGameModel = BoardGameModel.setup_game(player_id)
     controller: BoardGameController = BoardGameController(model)
-
     controller.start()
 
 

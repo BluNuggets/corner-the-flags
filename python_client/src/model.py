@@ -155,9 +155,13 @@ class ProtectedPiece:
 
 # --- MARK: PieceFactory
 
+
 class PieceFactory(Protocol):
     @classmethod
-    def make(cls, player: Player, piece_kind: PieceKind, location: Location) -> Piece: ...
+    def make(
+        cls, player: Player, piece_kind: PieceKind, location: Location
+    ) -> Piece: ...
+
 
 class BoardGamePieceFactory:
     @classmethod
@@ -243,11 +247,14 @@ class Board:
 
 # --- MARK: BoardSetter
 
+
 class BoardSetter:
     _piece_positions: PiecePositions
     _piece_factory: PieceFactory
 
-    def __init__(self, piece_positions: PiecePositions, piece_factory: PieceFactory) -> None:
+    def __init__(
+        self, piece_positions: PiecePositions, piece_factory: PieceFactory
+    ) -> None:
         self._piece_positions = piece_positions
         self._piece_factory = piece_factory
 
@@ -276,9 +283,10 @@ class Model(Protocol):
     def can_move(self, src: Location, dest: Location) -> bool: ...
     def move(self, src: Location, dest: Location): ...
 
+
 # todo: rename BoardGameModel with actual board game name
 class BoardGameModel:
-    #_player: Player
+    # _player: Player
     _state: GameState
     _board: Board
     _board_setter: BoardSetter
@@ -289,10 +297,16 @@ class BoardGameModel:
             captured_pieces={}, player_to_move=Player.PLAYER_1, turn=1, move=1
         )
 
-        return cls(state, Board(8, 8), BoardGamePiecePositions(), BoardGamePieceFactory())
+        return cls(
+            state, Board(8, 8), BoardGamePiecePositions(), BoardGamePieceFactory()
+        )
 
     def __init__(
-        self, state: GameState, board: Board, piece_positions: PiecePositions, piece_factory: PieceFactory
+        self,
+        state: GameState,
+        board: Board,
+        piece_positions: PiecePositions,
+        piece_factory: PieceFactory,
     ) -> None:
         self._state = state
         self._board = board

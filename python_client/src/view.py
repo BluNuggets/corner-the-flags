@@ -17,11 +17,13 @@ import os
 #import random
 #from cs150241project_networking import CS150241ProjectNetworking
 
+# --- MARK: Constants
 REL_CAPTURED_BOX_WIDTH = 0.15
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 700
 FPS = 60
 
+# --- MARK: Position
 #Position class is determining where an object is in the screen
 class Position():
     _x: int
@@ -42,6 +44,7 @@ class Position():
     def y(self):
         return self._y
     
+# --- MARK: Piece
 class Piece(PieceData):
     _piece_kind: PieceKind
     _location: Location
@@ -123,6 +126,7 @@ class Piece(PieceData):
         self._collision_box.update((self._last_stable_position.x, self._last_stable_position.y), (self._size, self._size))
         self._position = self._last_stable_position
 
+# --- MARK: Grid
 class Grid:
     _relative_width: int
     _relative_height: int
@@ -221,6 +225,7 @@ class Grid:
         else:
             return self.position_to_location(Position(cell.x, cell.y))
 
+# --- MARK: Button
 class Button:
     _s: str
     _position: Position
@@ -261,6 +266,7 @@ class Button:
         self._render: Surface = font.render(self._s, True, self._txt_c, self._bg_c)
         screen.blit(self._render, self._rect)
 
+# --- MARK: Captured Pieces
 class CapturedPiece():
     _piece_kind: PieceKind
     _size: int
@@ -308,6 +314,7 @@ class CapturedPiece():
         self._collision_box.update((self._last_stable_position.x, self._last_stable_position.y), (self._size, self._size))
         self._position = self._last_stable_position
 
+# --- MARK: Capture Box
 class CaptureBox():
     _width: int
     _height: int
@@ -425,6 +432,7 @@ class CaptureBox():
                 self._slice = (self._slice[0] + 4, self._slice[1] + 4)
                 self._page += 1
 
+# --- MARK: Observers
 class MakeMoveObserver(Protocol):
     def on_make_move(self, old: Location, new: Location, player: Player):
         ...
@@ -437,6 +445,7 @@ class GameStateObserver(Protocol):
     def on_state_change(self, state: GameState):
         ...
 
+# --- MARK: BoardGameView
 class BoardGameView:
     _width: int
     _height: int
@@ -468,11 +477,11 @@ class BoardGameView:
         self._capture_box = CaptureBox(self._font)
 
         #todo: setup networking to confirm this works
-        self._current_player = state.current_player
+        self._current_player = state.player_to_move
         self._player = Player.PLAYER_1 if player == 1 else Player.PLAYER_2
 
         #grid initialization comes after player initialization
-        self._grid = Grid(self._width, self._height, state.board_dimension[0], state.board_dimension[1], self._player)
+        self._grid = Grid(self._width, self._height, state.BOARD_DIMENSIONS[0], state.BOARD_DIMENSIONS[1], self._player)
         self._setup_initial_positions()
 
         #create observers for controller
@@ -512,6 +521,7 @@ class BoardGameView:
     def register_make_new_piece_observer(self, observer: MakeNewPieceObserver):
         self._make_new_piece_observers.append(observer)
 
+    # --- MARK: Run PyGame
     def run(self):
         active_piece_index: Location | None = None
         active_capture_piece_index: int | None = None
@@ -654,4 +664,4 @@ class BoardGameView:
         pass
 
     def on_state_change(self, state: GameState):
-        self._player = state.current_player
+        self._player = state.player_to_move

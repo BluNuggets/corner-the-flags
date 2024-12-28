@@ -1,12 +1,59 @@
 from __future__ import annotations
-from dataclasses import dataclass, replace, field
+from dataclasses import dataclass, replace
 from enum import StrEnum
-from typing import Protocol, Self, TypedDict
+from typing import ClassVar, Protocol
+
+# --- MARK: GameStatus
+
+
+class GameStatus(StrEnum):
+    ONGOING = "Ongoing"
+    DRAW = "Draw"
+    PLAYER_1_WIN = "Player 1 wins"
+    PLAYER_2_WIN = "Player 2 wins"
+
+
+# --- MARK: GameState
+
+
+@dataclass(frozen=True)
+class GameState:
+    # constants
+    MAX_MOVES: ClassVar[int] = 3
+    BOARD_DIMENSIONS: ClassVar[tuple[int, int]] = (8,8)
+    # fields
+    captured_pieces: dict[Player, list[PieceKind]]
+    player_to_move: Player
+    turn: int
+    move: int
+
+    def new_game(self) -> GameState:
+        return GameState(
+            captured_pieces={}, player_to_move=Player.PLAYER_1, turn=1, move=1
+        )
+
+    def next_move(self) -> GameState:
+        if self.move < GameState.MAX_MOVES:
+            return replace(self, move=self.move + 1)
+        else:
+            match self.player_to_move:
+                case Player.PLAYER_1:
+                    return replace(self, player_to_move=Player.PLAYER_2, move=1)
+                case Player.PLAYER_2:
+                    return replace(
+                        self, player_to_move=Player.PLAYER_1, turn=self.turn + 1, move=1
+                    )
+
+
+# --- MARK: Player
 
 
 class Player(StrEnum):
     PLAYER_1 = "Player 1"
     PLAYER_2 = "Player 2"
+
+
+# --- MARK: PieceKind
 
 
 class PieceKind(StrEnum):
@@ -15,7 +62,10 @@ class PieceKind(StrEnum):
     LANCE = "Lance"
 
 
-@dataclass
+# --- MARK: Location
+
+
+@dataclass(frozen=True)
 class Location:
     _row: int
     _column: int
@@ -40,6 +90,9 @@ class Location:
         return self._column
 
 
+# --- MARK: PieceData
+
+
 class PieceData(Protocol):
     _piece_kind: PieceKind
     _location: Location
@@ -50,8 +103,6 @@ class PieceData(Protocol):
     @property
     def location(self) -> Location: ...
 
-
-type PlayerPieceData = tuple[Player, PieceData]
 
 # todo: does this stay here in project_types?
 # --- MARK: PiecePositions
@@ -85,34 +136,6 @@ class BoardGamePiecePositions:
             Location(7, 8): (Player.PLAYER_2, PieceKind.PAWN),
             Location(8, 1): (Player.PLAYER_2, PieceKind.KING),
         }
-
-
-# --- MARK: Game State
-# todo: what constitutes as an "invalid game state"?
-@dataclass(frozen=True)
-class GameState:
-    current_player: Player
-    board_dimension: tuple[int, int]
-    moves: list[str] = field (init=False, default_factory=list)
-
-    class Props(TypedDict, total=False):
-        current_player: Player
-
-    def next_turn(self) -> Self:
-        return self.to({
-            'current_player': Player.PLAYER_1,
-        }) if self.current_player == Player.PLAYER_2 \
-        else self.to({
-            'current_player': Player.PLAYER_2,
-        })
-    
-    def to(self, props: Props) -> Self:
-        ret = replace(self, **props)
-
-        #if not ret.is_valid_state():
-            #raise RuntimeError(f'Invalid game state: {ret}')
-
-        return ret
 
 class FeedbackInfo(StrEnum):
     VALID = 'Valid'

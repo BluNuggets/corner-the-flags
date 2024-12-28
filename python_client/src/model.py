@@ -1,15 +1,15 @@
 from __future__ import annotations
 import copy
 from dataclasses import dataclass, field, replace
-from typing import Protocol, Self
+from typing import Protocol
 
 from project_types import (
+    GameState,
     Player,
     PieceKind,
     Location,
     PiecePositions,
     BoardGamePiecePositions,
-    GameState,
     Feedback,
     FeedbackInfo
 )
@@ -158,7 +158,14 @@ class ProtectedPiece:
 # --- MARK: PieceFactory
 
 
-class PieceFactory:
+class PieceFactory(Protocol):
+    @classmethod
+    def make(
+        cls, player: Player, piece_kind: PieceKind, location: Location
+    ) -> Piece: ...
+
+
+class BoardGamePieceFactory:
     @classmethod
     def make(cls, player: Player, piece_kind: PieceKind, location: Location) -> Piece:
         match piece_kind:
@@ -183,8 +190,8 @@ class PieceFactory:
 
 @dataclass
 class Board:
-    _rows: int = field(default=8)
-    _columns: int = field(default=8)
+    _rows: int
+    _columns: int
     _pieces: dict[Location, Piece] = field(default_factory=dict)
 
     @property
@@ -201,12 +208,12 @@ class Board:
 
     def add_piece(self, piece: Piece) -> None:
         if not self.is_square_within_bounds(piece.location):
-            raise IndexError(
+            raise KeyError(
                 "Error: Attempted to add a piece to an out of bounds location on the board."
             )
 
         if not self.is_square_empty(piece.location):
-            raise Exception(
+            raise KeyError(
                 "Error: Attempted to add a piece to a non-empty board square."
             )
 
@@ -214,7 +221,7 @@ class Board:
 
     def get_piece(self, location: Location) -> Piece | None:
         if not self.is_square_within_bounds(location):
-            raise IndexError(
+            raise KeyError(
                 "Error: Attempted to get a piece from an out of bounds location on the board."
             )
         
@@ -222,12 +229,12 @@ class Board:
 
     def remove_piece(self, location: Location) -> None:
         if not self.is_square_within_bounds(location):
-            raise IndexError(
+            raise KeyError(
                 "Error: Attempted to remove a piece from an out of bounds location on the board."
             )
 
         if self.is_square_empty(location):
-            raise Exception(
+            raise KeyError(
                 "Error: Attempted to remove a piece from an empty board square."
             )
 
@@ -240,41 +247,74 @@ class Board:
         return 1 <= location.row <= self._rows and 1 <= location.column <= self._columns
 
 
-# --- MARK: Board Game Model
+# --- MARK: BoardSetter
 
 
-# todo: rename BoardGameModel with actual board game name
-class BoardGameModel:
-    _board: Board
+class BoardSetter:
     _piece_positions: PiecePositions
-    _state: GameState
+    _piece_factory: PieceFactory
 
-    #set default settings of Board
-    @classmethod
-    def default_board(cls) -> Self:
-        state = GameState(
-            current_player = Player.PLAYER_1,
-            board_dimension = (8,8),
-        )
+    def __init__(
+        self, piece_positions: PiecePositions, piece_factory: PieceFactory
+    ) -> None:
+        self._piece_positions = piece_positions
+        self._piece_factory = piece_factory
 
-        return cls(Board(8,8), state)
-    
-    def __init__(self, board: Board, state: GameState) -> None:
-        self._board = board
-        self._piece_positions = BoardGamePiecePositions()
-        self._state = state
-
-        self._setup_board()
-
-    def _setup_board(self):
+    def setup_board(self, board: Board):
         for (
             location,
             player_piece_kind,
         ) in self._piece_positions.get_positions().items():
             player: Player = player_piece_kind[0]
             piece_kind: PieceKind = player_piece_kind[1]
-            piece: Piece = PieceFactory.make(player, piece_kind, location)
-            self._board.add_piece(piece)
+            piece: Piece = self._piece_factory.make(player, piece_kind, location)
+            board.add_piece(piece)
+
+
+# --- MARK: Board Game Model
+
+
+class Model(Protocol):
+    _state: GameState
+    _board: Board
+    _piece_positions: PiecePositions
+
+    @classmethod
+    def setup_game(cls) -> Model: ...
+
+    def can_move(self, src: Location, dest: Location) -> bool: ...
+    def move(self, src: Location, dest: Location): ...
+
+
+# todo: rename BoardGameModel with actual board game name
+class BoardGameModel:
+    # _player: Player
+    _state: GameState
+    _board: Board
+    _board_setter: BoardSetter
+
+    @classmethod
+    def setup_game(cls) -> BoardGameModel:
+        state = GameState(
+            captured_pieces={}, player_to_move=Player.PLAYER_1, turn=1, move=1
+        )
+
+        return cls(
+            state, Board(8, 8), BoardGamePiecePositions(), BoardGamePieceFactory()
+        )
+
+    def __init__(
+        self,
+        state: GameState,
+        board: Board,
+        piece_positions: PiecePositions,
+        piece_factory: PieceFactory,
+    ) -> None:
+        self._state = state
+        self._board = board
+        self._board_setter = BoardSetter(piece_positions, piece_factory)
+
+        self._board_setter.setup_board(self._board)
 
     # todo 1: check if Player can move a certain piece
     # todo 2: possibly add player to model fields
@@ -337,7 +377,7 @@ class BoardGameModel:
                 move = (src, dest),
                 info = FeedbackInfo.VALID
             )
-        elif player != self._state.current_player:
+        elif player != self._state.player_to_move:
             return Feedback(
                 move = (src, dest),
                 info = FeedbackInfo.NOT_CURRENT_PLAYER

@@ -11,7 +11,7 @@ from project_types import (
     PiecePositions,
     BoardGamePiecePositions,
     Feedback,
-    FeedbackInfo
+    FeedbackInfo,
 )
 
 # --- MARK: Movement
@@ -224,7 +224,7 @@ class Board:
             raise KeyError(
                 "Error: Attempted to get a piece from an out of bounds location on the board."
             )
-        
+
         return self._pieces[location] if self._pieces.get(location) else None
 
     def remove_piece(self, location: Location) -> None:
@@ -368,26 +368,17 @@ class BoardGameModel:
         dest_piece: Piece | None = self._board.get_piece(dest)
         if dest_piece is None:
             return
-    
+
     def move_from_view(self, src: Location, dest: Location, player: Player) -> Feedback:
         if self.can_move(src, dest):
             # todo: update state as well
             self.move(src, dest)
-            return Feedback(
-                move = (src, dest),
-                info = FeedbackInfo.VALID
-            )
+            return Feedback(move=(src, dest), info=FeedbackInfo.VALID)
         elif player != self._state.player_to_move:
-            return Feedback(
-                move = (src, dest),
-                info = FeedbackInfo.NOT_CURRENT_PLAYER
-            )
+            return Feedback(move=(src, dest), info=FeedbackInfo.NOT_CURRENT_PLAYER)
         else:
-            return Feedback(
-                move = (src, dest),
-                info = FeedbackInfo.INVALID
-            )
-        
+            return Feedback(move=(src, dest), info=FeedbackInfo.INVALID)
+
     # todo: implement piece capture logic
 
     @property

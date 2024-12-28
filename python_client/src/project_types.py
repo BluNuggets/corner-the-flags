@@ -20,7 +20,7 @@ class GameStatus(StrEnum):
 class GameState:
     # constants
     MAX_MOVES: ClassVar[int] = 3
-    BOARD_DIMENSIONS: ClassVar[tuple[int, int]] = (8,8)
+    BOARD_DIMENSIONS: ClassVar[tuple[int, int]] = (8, 8)
     # fields
     captured_pieces: dict[Player, list[PieceKind]]
     player_to_move: Player
@@ -137,10 +137,12 @@ class BoardGamePiecePositions:
             Location(8, 1): (Player.PLAYER_2, PieceKind.KING),
         }
 
+
 class FeedbackInfo(StrEnum):
-    VALID = 'Valid'
-    NOT_CURRENT_PLAYER = 'Not current player'
-    INVALID = 'Invalid'
+    VALID = "Valid"
+    NOT_CURRENT_PLAYER = "Not current player"
+    INVALID = "Invalid"
+
 
 @dataclass(frozen=True)
 class Feedback:

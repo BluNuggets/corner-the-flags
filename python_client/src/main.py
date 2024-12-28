@@ -5,8 +5,9 @@ from project_types import (
     Location,
     GameState,
     Player,
+    PieceKind,
     Feedback,
-    FeedbackInfo
+    FeedbackInfo,
 )
 
 
@@ -34,6 +35,13 @@ class BoardGameController:
         self._on_state_change(self._model.state)
         print(f"model says that the move is {"Valid" if feedback.info == FeedbackInfo.VALID else "Invalid"}")
         self._view.update_move(feedback)
+
+    def on_make_new_piece(self, piece_kind: PieceKind, dest: Location):
+        #feedback: Feedback = self._model.add_new_piece(piece_kind, dest)
+        #self._on_state_change(self._model.state)
+        #print(f"model says that the move is {"Valid" if feedback.info == FeedbackInfo.VALID else "Invalid"}")
+        #self._view.update_new_piece(feedback)
+        pass
 
     def _on_state_change(self, state: GameState):
         for observer in self._game_state_observers:

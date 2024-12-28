@@ -328,8 +328,6 @@ class BoardGameModel:
         dest_piece: Piece | None = self._board.get_piece(dest)
         if dest_piece is None:
             return
-
-        # todo: implement piece capture logic
     
     def move_from_view(self, src: Location, dest: Location, player: Player) -> Feedback:
         if self.can_move(src, dest):
@@ -349,6 +347,8 @@ class BoardGameModel:
                 move = (src, dest),
                 info = FeedbackInfo.INVALID
             )
+        
+    # todo: implement piece capture logic
 
     @property
     def state(self) -> GameState:

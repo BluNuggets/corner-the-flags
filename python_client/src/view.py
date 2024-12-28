@@ -43,8 +43,6 @@ class Position():
         return self._y
     
 class Piece(PieceData):
-    # Note: position is only relative to the size of the screen
-    # The piece does not know what location it is on the Board (i.e. A1, B3 are not known by Piece)
     _piece_kind: PieceKind
     _location: Location
     _position: Position
@@ -223,14 +221,6 @@ class Grid:
         else:
             return self.position_to_location(Position(cell.x, cell.y))
 
-class MakeMoveObserver(Protocol):
-    def on_make_move(self, old: Location, new: Location, player: Player):
-        ...
-
-class GameStateObserver(Protocol):
-    def on_state_change(self, state: GameState):
-        ...
-
 class Button:
     _s: str
     _position: Position
@@ -274,20 +264,14 @@ class Button:
 class CapturedPiece():
     _piece_kind: PieceKind
     _size: int
-    _collision_box: Rect | None
+    _collision_box: Rect
+    _position: Position
+    _last_stable_position: Position
     _image: Surface
 
-    def __init__(self, piece: PieceKind, img: Surface, size: int):
+    def __init__(self, piece: PieceKind, img: Surface, size: int, position: Position):
         self._piece_kind = piece
         self._size = size
-        self._collision_box = None
-        self._image = pygame.transform.scale(img, (size, size))
-
-    @property
-    def size(self) -> int:
-        return self._size
-
-    def render(self, screen: Surface, position: Position):
         self._collision_box = pygame.Rect(
             position.x,
             position.y,
@@ -295,8 +279,34 @@ class CapturedPiece():
             self._size,
         )
 
+        self._position = position
+        self._last_stable_position = position
+        self._image = pygame.transform.scale(img, (size, size))
+
+    @property
+    def piece_kind(self) -> PieceKind:
+        return self._piece_kind
+
+    @property
+    def size(self) -> int:
+        return self._size
+    
+    @property
+    def collision_box(self) -> Rect:
+        return self._collision_box
+
+    def render(self, screen: Surface):
         pygame.draw.rect(screen, "chocolate1", self._collision_box)
-        screen.blit(self._image, (position.x, position.y))
+        screen.blit(self._image, (self._position.x, self._position.y))
+
+    #move both image and collision box using the relative position argument
+    def move_rel(self, rel_position: Any):
+        self._collision_box.move_ip(rel_position)
+        self._position = Position(self._position.x + rel_position[0], self._position.y + rel_position[1])
+
+    def reset_to_spot(self):
+        self._collision_box.update((self._last_stable_position.x, self._last_stable_position.y), (self._size, self._size))
+        self._position = self._last_stable_position
 
 class CaptureBox():
     _width: int
@@ -345,6 +355,18 @@ class CaptureBox():
     @property
     def buttons(self) -> list[Button]:
         return self._buttons
+    
+    @property
+    def capture_list(self) -> list[CapturedPiece]:
+        return self._capture_list
+    
+    @property
+    def shown_capture_list(self) -> list[CapturedPiece]:
+        return self._capture_list[self._slice[0]:self._slice[1]]
+    
+    @property
+    def start_of_slice(self) -> int:
+        return self._slice[0]
 
     def render(self, screen: Surface, font: Font):
         pygame.draw.rect(screen, "sandybrown", self._container)
@@ -355,20 +377,14 @@ class CaptureBox():
         header_rect.center = (self._position.x + (self._width // 2), self._position.y + 20)
         screen.blit(header_render, header_rect)
 
-        for index,piece in enumerate(self._capture_list[self._slice[0]: self._slice[1]]):
-            piece.render(
-                screen,
-                Position(
-                    self._position.x + (self._width // 2) - (int(self._width * 0.5) // 2),
-                    int((self._height*0.1) + (index * self._height * 0.175))
-                )
-            )
+        for piece in self._capture_list[self._slice[0]: self._slice[1]]:
+            piece.render(screen)
 
         for button in self._buttons:
             button.render(screen, font)
 
         #render footer
-        footer_render: Surface = font.render(f"Page {self._page} of {ceil(len(self._capture_list) / 4)}", True, "black", "sandybrown")
+        footer_render: Surface = font.render(f"Page {self._page} of {1 if len(self._capture_list) == 0 else ceil(len(self._capture_list) / 4)}", True, "black", "sandybrown")
         footer_rect = footer_render.get_rect()
         footer_rect.center = (self._position.x + (self._width // 2), self._height - 20)
         screen.blit(footer_render, footer_rect)
@@ -378,9 +394,16 @@ class CaptureBox():
             CapturedPiece(
                 pk,
                 pygame.image.load(img_path),
-                int(self._width * 0.5)
+                int(self._width * 0.5),
+                Position(
+                    self._position.x + (self._width // 2) - (int(self._width * 0.5) // 2),
+                    int((self._height*0.1) + ((len(self._capture_list) % 4)) * self._height * 0.175)
+                )
             )
         )
+    
+    def move_piece(self, rel: Any, index: int):
+        self._capture_list[index].move_rel(rel)
     
     def go_to_page(self, button_index: int):
         # previous page
@@ -401,6 +424,18 @@ class CaptureBox():
                 #update slice
                 self._slice = (self._slice[0] + 4, self._slice[1] + 4)
                 self._page += 1
+
+class MakeMoveObserver(Protocol):
+    def on_make_move(self, old: Location, new: Location, player: Player):
+        ...
+
+class MakeNewPieceObserver(Protocol):
+    def on_make_new_piece(self, piece_kind: PieceKind, dest: Location):
+        ...
+
+class GameStateObserver(Protocol):
+    def on_state_change(self, state: GameState):
+        ...
 
 class BoardGameView:
     _width: int
@@ -442,6 +477,7 @@ class BoardGameView:
 
         #create observers for controller
         self._make_move_observers: list[MakeMoveObserver] = []
+        self._make_new_piece_observers: list[MakeNewPieceObserver] = []
 
         self._active_cell_to_snap = None
 
@@ -473,69 +509,97 @@ class BoardGameView:
     def register_make_move_observer(self, observer: MakeMoveObserver):
         self._make_move_observers.append(observer)
 
+    def register_make_new_piece_observer(self, observer: MakeNewPieceObserver):
+        self._make_new_piece_observers.append(observer)
+
     def run(self):
         active_piece_index: Location | None = None
+        active_capture_piece_index: int | None = None
 
         is_running: bool = True
-
-        for _ in range(4):
-            self._capture_box.add_captured_piece(PieceKind.PAWN, self._setup_image(PieceKind.PAWN))
-
-        for _ in range(2):
-            self._capture_box.add_captured_piece(PieceKind.KING, self._setup_image(PieceKind.KING))
-
-        for _ in range(3):
-            self._capture_box.add_captured_piece(PieceKind.LANCE, self._setup_image(PieceKind.LANCE))
 
         while is_running:
             for event in pygame.event.get():
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1: #left mouse button
+                        # check if click is for Board
                         for loc in self._pieces.keys():
                             piece = self._pieces[loc]
                             if piece.collision_box.collidepoint(event.pos) and piece.owned_by == self._player:
                                 active_piece_index = loc
                                 break
-
-                        for index,button in enumerate(self._capture_box.buttons):
-                            if button.collision_box.collidepoint(event.pos):
-                                self._capture_box.go_to_page(index)
-
-                    if event.button == 3 and active_piece_index != None:
-                        # print("should reset")
-                        for loc in self._pieces.keys():
-                            piece = self._pieces[loc]
-                            if active_piece_index == loc:
-                                piece.reset_to_spot()  
-                            else:
-                                continue
                         
-                        #point active piece index to nothing
-                        active_piece_index = None
+                        # check if click is for Capture List: prev and next button
+                        for index_b,button in enumerate(self._capture_box.buttons):
+                            if button.collision_box.collidepoint(event.pos):
+                                self._capture_box.go_to_page(index_b)
+
+                        # check if click is for Capture List
+                        # Note: the loop will only iterate through the shown capture list (maximum of 4)
+                        for index_c,cap_piece in enumerate(self._capture_box.shown_capture_list, self._capture_box.start_of_slice):
+                            if cap_piece.collision_box.collidepoint(event.pos):
+                                active_capture_piece_index = index_c
+                                break
+
+                    if event.button == 3:
+                        if active_piece_index != None:
+                            # print("should reset")
+                            for loc in self._pieces.keys():
+                                piece = self._pieces[loc]
+                                if active_piece_index == loc:
+                                    piece.reset_to_spot()
+                                    break                              
+                            #point active piece index to nothing
+                            active_piece_index = None
+
+                        if active_capture_piece_index != None:
+                            for index_c,cap_piece in enumerate(self._capture_box.capture_list):
+                                if active_capture_piece_index == index_c:
+                                    cap_piece.reset_to_spot()
+                                    break
+                            active_capture_piece_index = None
 
                 if event.type == pygame.MOUSEBUTTONUP:
                     #check which cell to snap to.
                     #note that the position should only snap to one cell (if not, we are in some big trouble)
-                    if event.button == 1 and active_piece_index != None:
-                        piece: Piece = self._pieces[active_piece_index]
-                        old_cell_location: Location = self._grid.position_to_location(piece.last_stable_position)
-                        snap_cell: Rect | None = self._grid.snap_position(event.pos)
-                        new_cell_location: Location | None = self._grid.get_cell_location(snap_cell)
+                    if event.button == 1:
+                        if active_piece_index != None:
+                            piece: Piece = self._pieces[active_piece_index]
+                            old_cell_location: Location = self._grid.position_to_location(piece.last_stable_position)
+                            snap_cell: Rect | None = self._grid.snap_position(event.pos)
+                            new_cell_location: Location | None = self._grid.get_cell_location(snap_cell)
 
-                        #todo: validate move through model
-                        if snap_cell != None and new_cell_location != None:
-                            self._active_cell_to_snap = snap_cell
-                            self._make_move(old_cell_location, new_cell_location)
-                        else:
-                            piece.reset_to_spot()
-                        
-                        #point active piece index to nothing
-                        self._active_cell_to_snap = None
-                        active_piece_index = None
+                            #todo: validate move through model
+                            if snap_cell != None and new_cell_location != None:
+                                self._active_cell_to_snap = snap_cell
+                                self._make_move(old_cell_location, new_cell_location)
+                            else:
+                                piece.reset_to_spot()
+                            
+                            #point active piece index to nothing
+                            self._active_cell_to_snap = None
+                            active_piece_index = None
+
+                        if active_capture_piece_index != None:
+                            cap_piece: CapturedPiece = self._capture_box.capture_list[active_capture_piece_index]
+                            snap_cell: Rect | None = self._grid.snap_position(event.pos)
+                            new_cell_location: Location | None = self._grid.get_cell_location(snap_cell)
+
+                            #todo: validate move through model
+                            if snap_cell != None and new_cell_location != None:
+                                self._active_cell_to_snap = snap_cell
+                                self._make_new_piece(cap_piece.piece_kind, new_cell_location)
+                            else:
+                                cap_piece.reset_to_spot()
+
+                            active_capture_piece_index = None
 
                 if event.type == pygame.MOUSEMOTION:
                     if active_piece_index != None:
                         self._pieces[active_piece_index].move_rel(event.rel)
+
+                    if active_capture_piece_index != None:
+                        self._capture_box.move_piece(event.rel, active_capture_piece_index)
 
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -553,15 +617,19 @@ class BoardGameView:
         self._screen.fill('black')
             
         self._grid.render(self._screen)
-
-        self._capture_box.render(self._screen, self._font)        
-
+        
         for loc in self._pieces.keys():
-            self._pieces[loc].render(self._screen)            
+            self._pieces[loc].render(self._screen)     
+
+        self._capture_box.render(self._screen, self._font)
         
     def _make_move(self, old: Location, new: Location):
         for observer in self._make_move_observers:
             observer.on_make_move(old, new, self._player)
+
+    def _make_new_piece(self, piece_kind: PieceKind, dest: Location):
+        for observer in self._make_new_piece_observers:
+            observer.on_make_new_piece(piece_kind, dest)
 
     def update_move(self, fb: Feedback):
         active_piece = self._pieces[fb.move[0]]
@@ -581,6 +649,9 @@ class BoardGameView:
 
             case FeedbackInfo.INVALID:
                 self._pieces[fb.move[0]].reset_to_spot()
+
+    def update_new_piece(self, fb: Feedback):
+        pass
 
     def on_state_change(self, state: GameState):
         self._player = state.current_player

@@ -1,5 +1,6 @@
 import pygame
-from pygame import Rect, Surface, Clock
+from math import ceil
+from pygame import Rect, Surface, Clock, Font
 from typing import Any, Protocol
 from project_types import (
     Player,
@@ -16,7 +17,7 @@ import os
 #import random
 #from cs150241project_networking import CS150241ProjectNetworking
 
-REL_CAPTURED_BOX_WIDTH = 0.2
+REL_CAPTURED_BOX_WIDTH = 0.15
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 700
 FPS = 60
@@ -230,30 +231,206 @@ class GameStateObserver(Protocol):
     def on_state_change(self, state: GameState):
         ...
 
+class Button:
+    _s: str
+    _position: Position
+    _bg_c: str
+    _txt_c: str
+    _render: Surface
+    _rect: Rect
+
+    def __init__(self, s: str, position: Position, bg_color: str, txt_color: str, font: Font):
+        self._s = s
+        self._position = position
+        self._bg_c = bg_color
+        self._txt_c = txt_color
+
+
+        self._render = font.render(self._s, True, self._txt_c, self._bg_c)
+        self._rect = self._render.get_rect()
+        self._rect.center = (self._position.x, self._position.y)
+
+    @property
+    def content(self) -> str:
+        return self._s
+    
+    @property
+    def collision_box(self) -> Rect:
+        return self._rect
+    
+    def update_text(self, s: str):
+        self._s = s
+    
+    def update_text_color(self, color: str):
+        self._txt_c = color
+
+    def update_bg(self, color: str):
+        self._bg_c = color
+
+    def render(self, screen: Surface, font: Font):
+        self._render: Surface = font.render(self._s, True, self._txt_c, self._bg_c)
+        screen.blit(self._render, self._rect)
+
+class CapturedPiece():
+    _piece_kind: PieceKind
+    _size: int
+    _collision_box: Rect | None
+    _image: Surface
+
+    def __init__(self, piece: PieceKind, img: Surface, size: int):
+        self._piece_kind = piece
+        self._size = size
+        self._collision_box = None
+        self._image = pygame.transform.scale(img, (size, size))
+
+    @property
+    def size(self) -> int:
+        return self._size
+
+    def render(self, screen: Surface, position: Position):
+        self._collision_box = pygame.Rect(
+            position.x,
+            position.y,
+            self._size,
+            self._size,
+        )
+
+        pygame.draw.rect(screen, "chocolate1", self._collision_box)
+        screen.blit(self._image, (position.x, position.y))
+
+class CaptureBox():
+    _width: int
+    _height: int
+    _position: Position
+    _container: Rect
+    _capture_list: list[CapturedPiece]
+    _buttons: list[Button]
+    _slice: tuple[int, int]
+    _page: int
+
+    def __init__(self, font: Font):
+        self._width = int(SCREEN_WIDTH * REL_CAPTURED_BOX_WIDTH)
+        self._height = SCREEN_HEIGHT
+
+        self._position = Position(SCREEN_WIDTH - self._width, 0)
+
+        self._container = pygame.Rect(
+            SCREEN_WIDTH - self._width,
+            0, 
+            self._width, 
+            self._height,
+        )
+
+        self._capture_list = []
+        self._slice = (0,4)     # the list shows at most 4 pieces
+        self._page = 1
+
+        self._buttons = [ 
+            Button(
+                "<< Prev",
+                Position(self._position.x + (self._width // 2), self._height - int(self._height * 0.15)),
+                "sandybrown",
+                "black",
+                font
+            ),
+            Button(
+                "Next >>",
+                Position(self._position.x + (self._width // 2), self._height - int(self._height * 0.1)),
+                "sandybrown",
+                "black",
+                font
+            ),
+        ]
+
+    @property
+    def buttons(self) -> list[Button]:
+        return self._buttons
+
+    def render(self, screen: Surface, font: Font):
+        pygame.draw.rect(screen, "sandybrown", self._container)
+
+        #render header
+        header_render: Surface = font.render("Captures", True, "black", "sandybrown")
+        header_rect = header_render.get_rect()
+        header_rect.center = (self._position.x + (self._width // 2), self._position.y + 20)
+        screen.blit(header_render, header_rect)
+
+        for index,piece in enumerate(self._capture_list[self._slice[0]: self._slice[1]]):
+            piece.render(
+                screen,
+                Position(
+                    self._position.x + (self._width // 2) - (int(self._width * 0.5) // 2),
+                    int((self._height*0.1) + (index * self._height * 0.175))
+                )
+            )
+
+        for button in self._buttons:
+            button.render(screen, font)
+
+        #render footer
+        footer_render: Surface = font.render(f"Page {self._page} of {ceil(len(self._capture_list) / 4)}", True, "black", "sandybrown")
+        footer_rect = footer_render.get_rect()
+        footer_rect.center = (self._position.x + (self._width // 2), self._height - 20)
+        screen.blit(footer_render, footer_rect)
+
+    def add_captured_piece(self, pk: PieceKind, img_path: str):
+        self._capture_list.append(
+            CapturedPiece(
+                pk,
+                pygame.image.load(img_path),
+                int(self._width * 0.5)
+            )
+        )
+    
+    def go_to_page(self, button_index: int):
+        # previous page
+        if button_index == 0:
+            if self._slice[0] == 0:
+                #do nothing
+                return
+            else:
+                #update slice
+                self._slice = (self._slice[0] - 4, self._slice[1] - 4)
+                self._page -= 1
+        # next page
+        else:
+            if self._slice[1] >= len(self._capture_list):
+                #do nothing
+                return
+            else:
+                #update slice
+                self._slice = (self._slice[0] + 4, self._slice[1] + 4)
+                self._page += 1
+
 class BoardGameView:
     _width: int
     _height: int
     _fps: int
     _screen: Surface
+    _font: Font
     _clock: Clock
     _frame_count: int
     _pieces: dict[Location, Piece]
     _grid: Grid
+    _capture_box: CaptureBox
     _current_player: Player
     _player: Player
-    _nth_action: int
 
     _captureBox: Rect
     _active_cell_to_snap: Rect | None
 
     def __init__(self, state: GameState, player: int):
+        pygame.init()
+
         self._width = SCREEN_WIDTH
         self._height = SCREEN_HEIGHT
         self._fps = FPS
         self._screen = pygame.display.set_mode((self._width, self._height))
+        self._font = pygame.font.SysFont("", 24)
         self._clock = pygame.time.Clock()
         self._frame_count = 0
         self._pieces = {}
+        self._capture_box = CaptureBox(self._font)
 
         #todo: setup networking to confirm this works
         self._current_player = state.current_player
@@ -276,20 +453,20 @@ class BoardGameView:
             self._pieces[location] = Piece(
                 player_piece_kind[1],
                 location,
-                self._setup_image(player_piece_kind[1]),
+                pygame.image.load(self._setup_image(player_piece_kind[1])),
                 self._grid.location_to_position(location),
                 self._grid.cell_length,
                 player_piece_kind[0],
             )
 
-    def _setup_image(self, pk: PieceKind) -> Surface:
+    def _setup_image(self, pk: PieceKind) -> str:
         match pk:
             case PieceKind.PAWN:
-                return pygame.image.load(os.path.join("src", "assets", "lui_sword.jpg"))
+                return os.path.join("src", "assets", "lui_sword.jpg")
             case PieceKind.KING:
-                return pygame.image.load(os.path.join("src", "assets", "lui_wink_ed.jpg"))
+                return os.path.join("src", "assets", "lui_wink_ed.jpg")
             case PieceKind.LANCE:
-                return pygame.image.load(os.path.join("src", "assets", "lui_bright.jpg"))
+                return os.path.join("src", "assets", "lui_bright.jpg")
 
 
     # register move observer (usually from controller)
@@ -297,20 +474,18 @@ class BoardGameView:
         self._make_move_observers.append(observer)
 
     def run(self):
-        pygame.init()
-
         active_piece_index: Location | None = None
 
         is_running: bool = True
-        #font = pygame.font.SysFont("", 24)
 
-        #Rect: x, y, width, height
-        self._captureBox: Rect = pygame.Rect(
-            self._width - (REL_CAPTURED_BOX_WIDTH * self._width),
-            0, 
-            self._width, 
-            self._height,
-        )
+        for _ in range(4):
+            self._capture_box.add_captured_piece(PieceKind.PAWN, self._setup_image(PieceKind.PAWN))
+
+        for _ in range(2):
+            self._capture_box.add_captured_piece(PieceKind.KING, self._setup_image(PieceKind.KING))
+
+        for _ in range(3):
+            self._capture_box.add_captured_piece(PieceKind.LANCE, self._setup_image(PieceKind.LANCE))
 
         while is_running:
             for event in pygame.event.get():
@@ -321,6 +496,10 @@ class BoardGameView:
                             if piece.collision_box.collidepoint(event.pos) and piece.owned_by == self._player:
                                 active_piece_index = loc
                                 break
+
+                        for index,button in enumerate(self._capture_box.buttons):
+                            if button.collision_box.collidepoint(event.pos):
+                                self._capture_box.go_to_page(index)
 
                     if event.button == 3 and active_piece_index != None:
                         # print("should reset")
@@ -375,8 +554,7 @@ class BoardGameView:
             
         self._grid.render(self._screen)
 
-        #todo: captured box
-        pygame.draw.rect(self._screen, "sandybrown", self._captureBox)
+        self._capture_box.render(self._screen, self._font)        
 
         for loc in self._pieces.keys():
             self._pieces[loc].render(self._screen)            

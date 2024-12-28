@@ -273,19 +273,6 @@ class BoardSetter:
 # --- MARK: Board Game Model
 
 
-class Model(Protocol):
-    _player: Player
-    _state: GameState
-    _board: Board
-    _piece_positions: PiecePositions
-
-    @classmethod
-    def setup_game(cls) -> Model: ...
-
-    def can_move(self, src: Location, dest: Location) -> bool: ...
-    def move(self, src: Location, dest: Location): ...
-
-
 # todo: rename BoardGameModel with actual board game name
 class BoardGameModel:
     _player: Player

@@ -299,6 +299,8 @@ class BoardGameModel:
 
         state = GameState(
             max_moves=3,
+            board_data=board,
+            board_pieces=board.pieces,
             captured_pieces={},
             player_to_move=Player.PLAYER_1,
             turn=1,
@@ -306,11 +308,7 @@ class BoardGameModel:
         )
 
         return cls(
-            player_id,
-            state,
-            board,
-            BoardGamePiecePositions(),
-            BoardGamePieceFactory(),
+            player_id, state, board, BoardGamePiecePositions(), BoardGamePieceFactory()
         )
 
     def __init__(

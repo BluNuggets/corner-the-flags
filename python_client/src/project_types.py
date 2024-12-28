@@ -22,6 +22,8 @@ class GameState:
     # "constants"
     max_moves: int
     # fields
+    board_data: BoardData
+    board_pieces: Mapping[Location, PieceData]
     captured_pieces: Mapping[Player, Sequence[PieceKind]]
     player_to_move: Player
     turn: int
@@ -102,6 +104,20 @@ class PieceData(Protocol):
 
     @property
     def location(self) -> Location: ...
+
+
+# --- MARK: BoardData
+
+
+class BoardData(Protocol):
+    _rows: int
+    _columns: int
+
+    @property
+    def rows(self) -> int: ...
+
+    @property
+    def columns(self) -> int: ...
 
 
 # todo: does this stay here in project_types?

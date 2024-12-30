@@ -734,10 +734,7 @@ class BoardGameView:
                 if self._active_cell_to_snap is not None:
                     self._pieces[fb.move[1]].snap(self._active_cell_to_snap)
 
-            case FeedbackInfo.NOT_CURRENT_PLAYER:
-                self._pieces[fb.move[0]].reset_to_spot()
-
-            case FeedbackInfo.INVALID:
+            case _:
                 self._pieces[fb.move[0]].reset_to_spot()
 
     def update_new_piece(self, fb: Feedback):

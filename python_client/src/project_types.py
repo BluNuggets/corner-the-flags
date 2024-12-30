@@ -8,10 +8,10 @@ from typing import Protocol
 
 
 class GameStatus(StrEnum):
-    ONGOING = "Ongoing"
-    DRAW = "Draw"
-    PLAYER_1_WIN = "Player 1 wins"
-    PLAYER_2_WIN = "Player 2 wins"
+    ONGOING = 'Ongoing'
+    DRAW = 'Draw'
+    PLAYER_1_WIN = 'Player 1 wins'
+    PLAYER_2_WIN = 'Player 2 wins'
 
 
 # --- MARK: GameState
@@ -21,7 +21,7 @@ class GameStatus(StrEnum):
 class GameState(Protocol):
     @property
     def player(self) -> Player: ...
-    
+
     @property
     def max_moves(self) -> int: ...
 
@@ -48,17 +48,17 @@ class GameState(Protocol):
 
 
 class Player(StrEnum):
-    PLAYER_1 = "Player 1"
-    PLAYER_2 = "Player 2"
+    PLAYER_1 = 'Player 1'
+    PLAYER_2 = 'Player 2'
 
 
 # --- MARK: PieceKind
 
 
 class PieceKind(StrEnum):
-    PAWN = "Pawn"
-    KING = "King"
-    LANCE = "Lance"
+    PAWN = 'Pawn'
+    KING = 'King'
+    LANCE = 'Lance'
 
 
 # --- MARK: Location
@@ -149,14 +149,14 @@ class BoardGamePiecePositions:
 
 
 class FeedbackInfo(StrEnum):
-    NOT_CURRENT_PLAYER = "Not current player"
-    NO_PIECE_MOVED = "No piece moved"
-    SQUARE_OUT_OF_BOUNDS = "Square out of bounds"
-    PIECE_DOES_NOT_BELONG_TO_PLAYER = "Piece does not belong to player"
-    PIECE_CANNOT_REACH_SQUARE = "Piece cannot reach square"
-    CAPTURES_OWN_PIECE = "Captures own piece"
-    CAPTURES_PROTECTED_PIECE = "Captures protected piece"
-    VALID = "Valid"
+    NOT_CURRENT_PLAYER = 'Not current player'
+    NO_PIECE_MOVED = 'No piece moved'
+    SQUARE_OUT_OF_BOUNDS = 'Square out of bounds'
+    PIECE_DOES_NOT_BELONG_TO_PLAYER = 'Piece does not belong to player'
+    PIECE_CANNOT_REACH_SQUARE = 'Piece cannot reach square'
+    CAPTURES_OWN_PIECE = 'Captures own piece'
+    CAPTURES_PROTECTED_PIECE = 'Captures protected piece'
+    VALID = 'Valid'
 
 
 @dataclass(frozen=True)

@@ -112,7 +112,7 @@ class RegularPiece:
 
     def move(self, dest: Location) -> None:
         if not self.can_move(dest):
-            raise ValueError(f"Error: RegularPiece cannot move to square {dest}")
+            raise ValueError(f'Error: RegularPiece cannot move to square {dest}')
 
         self._location = copy.copy(dest)
 
@@ -151,7 +151,7 @@ class ProtectedPiece:
 
     def move(self, dest: Location) -> None:
         if not self.can_move(dest):
-            raise ValueError(f"Error: RegularPiece cannot move to square {dest}")
+            raise ValueError(f'Error: RegularPiece cannot move to square {dest}')
 
         self._location = copy.copy(dest)
 
@@ -210,12 +210,12 @@ class Board:
     def add_piece(self, piece: Piece) -> None:
         if not self.is_square_within_bounds(piece.location):
             raise KeyError(
-                "Error: Attempted to add a piece to an out of bounds location on the board."
+                'Error: Attempted to add a piece to an out of bounds location on the board.'
             )
 
         if not self.is_square_empty(piece.location):
             raise KeyError(
-                "Error: Attempted to add a piece to a non-empty board square."
+                'Error: Attempted to add a piece to a non-empty board square.'
             )
 
         self._pieces[piece.location] = piece
@@ -223,7 +223,7 @@ class Board:
     def get_piece(self, location: Location) -> Piece | None:
         if not self.is_square_within_bounds(location):
             raise KeyError(
-                "Error: Attempted to get a piece from an out of bounds location on the board."
+                'Error: Attempted to get a piece from an out of bounds location on the board.'
             )
 
         return self._pieces.get(location, None)
@@ -231,12 +231,12 @@ class Board:
     def remove_piece(self, location: Location) -> None:
         if not self.is_square_within_bounds(location):
             raise KeyError(
-                "Error: Attempted to remove a piece from an out of bounds location on the board."
+                'Error: Attempted to remove a piece from an out of bounds location on the board.'
             )
 
         if self.is_square_empty(location):
             raise KeyError(
-                "Error: Attempted to remove a piece from an empty board square."
+                'Error: Attempted to remove a piece from an empty board square.'
             )
 
         self._pieces.pop(location)
@@ -353,7 +353,7 @@ class BoardGameModel:
             case 2:
                 self._player = Player.PLAYER_2
             case _:
-                raise ValueError("Error: BoardGameModel received invalid player ID.")
+                raise ValueError('Error: BoardGameModel received invalid player ID.')
         self._board = board
         self._captured_pieces = captured_pieces
         self._state = state
@@ -518,7 +518,7 @@ class BoardGameModel:
 
             src_piece: Piece | None = self._board.get_piece(src)
             if src_piece is None:
-                raise Exception(f"Error: Move was called from empty square {src}.")
+                raise Exception(f'Error: Move was called from empty square {src}.')
 
             # ---
 

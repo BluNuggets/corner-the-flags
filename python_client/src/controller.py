@@ -25,7 +25,7 @@ class BoardGameController:
         view = self._view
         self._game_state_observers.append(view)
         view.register_make_move_observer(self)
-        print("temporary print - controller.start()")
+        print('temporary print - controller.start()')
 
         view.run()
 

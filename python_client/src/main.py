@@ -7,7 +7,9 @@ from controller import BoardGameController
 
 def main() -> None:
     try:
-        networking: CS150241ProjectNetworking | None = CS150241ProjectNetworking.connect("localhost", 15000)
+        networking: CS150241ProjectNetworking | None = (
+            CS150241ProjectNetworking.connect('localhost', 15000)
+        )
     except ConnectionRefusedError:
         print('Network not found.')
         networking = None
@@ -22,5 +24,5 @@ def main() -> None:
     controller.start()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

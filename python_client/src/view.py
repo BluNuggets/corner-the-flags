@@ -35,7 +35,7 @@ class Position:
         self._y = y
 
     def __repr__(self):
-        return f"{self._x, self._y}"
+        return f'{self._x, self._y}'
 
     @property
     def x(self):
@@ -109,7 +109,7 @@ class Piece(PieceData):
 
     def render(self, screen: Surface):
         # Note: it is important to render the collision box BEFORE the image to make the collision box "invisible"
-        pygame.draw.rect(screen, "chocolate1", self._collision_box)
+        pygame.draw.rect(screen, 'chocolate1', self._collision_box)
         screen.blit(self._image, (self._position.x, self._position.y))
 
     # move both image and collision box using the relative position argument
@@ -208,9 +208,9 @@ class Grid:
             for jth, col in enumerate(row):
                 # following chess.com format (LOL)
                 if (ith % 2 == 0 and jth % 2 == 0) or (ith % 2 != 0 and jth % 2 != 0):
-                    pygame.draw.rect(screen, "lightyellow", col)
+                    pygame.draw.rect(screen, 'lightyellow', col)
                 else:
-                    pygame.draw.rect(screen, "lightgreen", col)
+                    pygame.draw.rect(screen, 'lightgreen', col)
 
     # event.pos is considered as Any type
     def snap_position(self, cursor_position: Any) -> Rect | None:
@@ -328,7 +328,7 @@ class CapturedPiece:
         return self._collision_box
 
     def render(self, screen: Surface):
-        pygame.draw.rect(screen, "chocolate1", self._collision_box)
+        pygame.draw.rect(screen, 'chocolate1', self._collision_box)
         screen.blit(self._image, (self._position.x, self._position.y))
 
     # move both image and collision box using the relative position argument
@@ -376,23 +376,23 @@ class CaptureBox:
 
         self._buttons = [
             Button(
-                "<< Prev",
+                '<< Prev',
                 Position(
                     self._position.x + (self._width // 2),
                     self._height - int(self._height * 0.15),
                 ),
-                "sandybrown",
-                "black",
+                'sandybrown',
+                'black',
                 font,
             ),
             Button(
-                "Next >>",
+                'Next >>',
                 Position(
                     self._position.x + (self._width // 2),
                     self._height - int(self._height * 0.1),
                 ),
-                "sandybrown",
-                "black",
+                'sandybrown',
+                'black',
                 font,
             ),
         ]
@@ -414,10 +414,10 @@ class CaptureBox:
         return self._slice[0]
 
     def render(self, screen: Surface, font: Font):
-        pygame.draw.rect(screen, "sandybrown", self._container)
+        pygame.draw.rect(screen, 'sandybrown', self._container)
 
         # render header
-        header_render: Surface = font.render("Captures", True, "black", "sandybrown")
+        header_render: Surface = font.render('Captures', True, 'black', 'sandybrown')
         header_rect = header_render.get_rect()
         header_rect.center = (
             self._position.x + (self._width // 2),
@@ -433,10 +433,10 @@ class CaptureBox:
 
         # render footer
         footer_render: Surface = font.render(
-            f"Page {self._page} of {1 if len(self._capture_list) == 0 else ceil(len(self._capture_list) / 4)}",
+            f'Page {self._page} of {1 if len(self._capture_list) == 0 else ceil(len(self._capture_list) / 4)}',
             True,
-            "black",
-            "sandybrown",
+            'black',
+            'sandybrown',
         )
         footer_rect = footer_render.get_rect()
         footer_rect.center = (self._position.x + (self._width // 2), self._height - 20)
@@ -522,7 +522,7 @@ class BoardGameView:
         self._height = SCREEN_HEIGHT
         self._fps = FPS
         self._screen = pygame.display.set_mode((self._width, self._height))
-        self._font = pygame.font.SysFont("", 24)
+        self._font = pygame.font.SysFont('', 24)
         self._clock = pygame.time.Clock()
         self._frame_count = 0
         self._pieces = {}
@@ -566,11 +566,11 @@ class BoardGameView:
     def _setup_image(self, pk: PieceKind) -> str:
         match pk:
             case PieceKind.PAWN:
-                return os.path.join("src", "assets", "lui_sword.jpg")
+                return os.path.join('src', 'assets', 'lui_sword.jpg')
             case PieceKind.KING:
-                return os.path.join("src", "assets", "lui_wink_ed.jpg")
+                return os.path.join('src', 'assets', 'lui_wink_ed.jpg')
             case PieceKind.LANCE:
-                return os.path.join("src", "assets", "lui_bright.jpg")
+                return os.path.join('src', 'assets', 'lui_bright.jpg')
 
     # register move observer (usually from controller)
     def register_make_move_observer(self, observer: MakeMoveObserver):
@@ -731,7 +731,7 @@ class BoardGameView:
             self._frame_count += 1
 
     def render_frame(self):
-        self._screen.fill("black")
+        self._screen.fill('black')
 
         self._grid.render(self._screen)
 
@@ -753,7 +753,7 @@ class BoardGameView:
         match fb.info:
             case FeedbackInfo.VALID:
                 if not fb.move_dest:
-                    raise RuntimeError("Error: Move destination was not found")
+                    raise RuntimeError('Error: Move destination was not found')
 
                 # remove piece from prev location
                 self._pieces.pop(fb.move_src)

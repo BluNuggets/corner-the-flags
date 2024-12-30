@@ -52,10 +52,14 @@ class BoardGameController:
 
 
 def main() -> None:
-    networking: CS150241ProjectNetworking = CS150241ProjectNetworking.connect(
-        "localhost", 15000
-    )
-    player_id: PlayerId = networking.player_id if PlayerId else PlayerId(1)
+    try:
+        networking: CS150241ProjectNetworking | None = (
+            CS150241ProjectNetworking.connect("localhost", 15000)
+        )
+    except Exception:
+        networking = None
+
+    player_id: PlayerId = networking.player_id if networking else PlayerId(1)
 
     model: BoardGameModel = BoardGameModel.setup_game(player_id)
     view: BoardGameView = BoardGameView(model, 1)

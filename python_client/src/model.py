@@ -226,7 +226,7 @@ class Board:
                 "Error: Attempted to get a piece from an out of bounds location on the board."
             )
 
-        return self._pieces[location]
+        return self._pieces.get(location, None)
 
     def remove_piece(self, location: Location) -> None:
         if not self.is_square_within_bounds(location):
@@ -458,8 +458,6 @@ class BoardGameModel:
         # a player can capture an opponent piece if it is not a protected piece
         else:
             return not dest_piece.is_protected
-
-
 
     def move_piece(self, src: Location, dest: Location) -> None:
         if not self.can_move_piece(src, dest):

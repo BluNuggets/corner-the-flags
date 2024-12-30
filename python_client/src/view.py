@@ -722,20 +722,24 @@ class BoardGameView:
             observer.on_make_new_piece(piece_kind, dest)
 
     def update_move(self, fb: Feedback):
-        active_piece = self._pieces[fb.move[0]]
+        active_piece = self._pieces[fb.move_src]
         match fb.info:
             case FeedbackInfo.VALID:
+                if not fb.move_dest:
+                    raise RuntimeError("Error: Move destination was not found")
+
                 # remove piece from prev location
-                self._pieces.pop(fb.move[0])
+                self._pieces.pop(fb.move_src)
+
                 # set piece to new location
-                self._pieces[fb.move[1]] = active_piece
+                self._pieces[fb.move_dest] = active_piece
 
                 # snap to location
                 if self._active_cell_to_snap is not None:
-                    self._pieces[fb.move[1]].snap(self._active_cell_to_snap)
+                    self._pieces[fb.move_dest].snap(self._active_cell_to_snap)
 
             case _:
-                self._pieces[fb.move[0]].reset_to_spot()
+                self._pieces[fb.move_src].reset_to_spot()
 
     def update_new_piece(self, fb: Feedback):
         pass

@@ -146,12 +146,18 @@ class BoardGamePiecePositions:
 
 
 class FeedbackInfo(StrEnum):
-    VALID = "Valid"
     NOT_CURRENT_PLAYER = "Not current player"
-    INVALID = "Invalid"
+    NO_PIECE_MOVED = "No piece moved"
+    SQUARE_OUT_OF_BOUNDS = "Square out of bounds"
+    PIECE_DOES_NOT_BELONG_TO_PLAYER = "Piece does not belong to player"
+    PIECE_CANNOT_REACH_SQUARE = "Piece cannot reach square"
+    CAPTURES_OWN_PIECE = "Captures own piece"
+    CAPTURES_PROTECTED_PIECE = "Captures protected piece"
+    VALID = "Valid"
 
 
 @dataclass(frozen=True)
 class Feedback:
-    move: tuple[Location, Location]
+    move_src: Location
+    move_dest: Location | None
     info: FeedbackInfo

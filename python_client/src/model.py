@@ -12,7 +12,7 @@ from project_types import (
     PiecePositions,
     BoardGamePiecePositions,
     Feedback,
-    FeedbackInfo
+    FeedbackInfo,
 )
 
 # --- MARK: Movement
@@ -89,7 +89,7 @@ class RegularPiece:
 
     @property
     def player(self) -> Player:
-        return self.player
+        return self._player
 
     @property
     def piece_kind(self) -> PieceKind:
@@ -128,7 +128,7 @@ class ProtectedPiece:
 
     @property
     def player(self) -> Player:
-        return self.player
+        return self._player
 
     @property
     def piece_kind(self) -> PieceKind:
@@ -321,6 +321,10 @@ class BoardGameModel:
     def setup_game(cls, player_id: PlayerId) -> BoardGameModel:
         MAX_MOVES: int = 3
         board: Board = Board(8, 8)
+        captured_pieces: dict[Player, list[PieceKind]] = {
+            Player.PLAYER_1: [],
+            Player.PLAYER_2: [],
+        }
         state: BoardGameFrozenGameState = BoardGameFrozenGameState(
             _max_moves=MAX_MOVES, _player_to_move=Player.PLAYER_1, _turn=1, _move=1
         )
@@ -328,7 +332,7 @@ class BoardGameModel:
         return cls(
             player_id,
             board,
-            {},
+            captured_pieces,
             state,
             BoardGamePiecePositions(),
             BoardGamePieceFactory(),
@@ -401,16 +405,27 @@ class BoardGameModel:
 
     def new_game(self) -> None:
         self._board_setter.setup_board(self._board)
-        self._captured_pieces = {}
+        self._captured_pieces = {
+            Player.PLAYER_1: [],
+            Player.PLAYER_2: [],
+        }
+
         replace(self._state, player_to_move=Player.PLAYER_1, turn=1, move=1)
 
     def next_move(self) -> None:
         if self.move < self.max_moves:
-            replace(self._state, move=self.move + 1)
+            replace(
+                self._state,
+                move=self.move + 1,
+            )
         else:
             match self.player_to_move:
                 case Player.PLAYER_1:
-                    replace(self._state, player_to_move=Player.PLAYER_2, move=1)
+                    replace(
+                        self._state,
+                        player_to_move=Player.PLAYER_2,
+                        move=1,
+                    )
                 case Player.PLAYER_2:
                     replace(
                         self._state,
@@ -419,14 +434,20 @@ class BoardGameModel:
                         move=1,
                     )
 
-    def can_move_piece(self, src: Location, dest: Location) -> bool:
+    def get_move_feedback_info(
+        self, src: Location, dest: Location, player: Player
+    ) -> FeedbackInfo:
+        # not currently player's turn to move
+        if self._state.player_to_move != player:
+            return FeedbackInfo.NOT_CURRENT_PLAYER
+
         # src Location does not exist in board
         if not self._board.is_square_within_bounds(src):
-            return False
+            return FeedbackInfo.SQUARE_OUT_OF_BOUNDS
 
         # dest Location does not exist in board
         if not self._board.is_square_within_bounds(dest):
-            return False
+            return FeedbackInfo.SQUARE_OUT_OF_BOUNDS
 
         # ---
 
@@ -434,64 +455,93 @@ class BoardGameModel:
 
         # no piece exists in src Location
         if src_piece is None:
-            return False
+            return FeedbackInfo.NO_PIECE_MOVED
 
         # piece in src Location does not belong to the player
         # todo: uncomment if ready to test with 2 clients
-        # if src_piece.player != self._player:
-        #     return False
+        if src_piece.player != player:
+            return FeedbackInfo.PIECE_DOES_NOT_BELONG_TO_PLAYER
 
         # piece in src Location cannot reach dest Location
         if not src_piece.can_move(dest):
-            return False
+            return FeedbackInfo.PIECE_CANNOT_REACH_SQUARE
 
         # ---
 
         # a piece can always move to an empty dest Location
         dest_piece: Piece | None = self._board.get_piece(dest)
         if dest_piece is None:
-            return True
+            return FeedbackInfo.VALID
 
         # a player cannot capture their own piece
         if src_piece.player == dest_piece.player:
-            return False
+            return FeedbackInfo.CAPTURES_OWN_PIECE
         # a player can capture an opponent piece if it is not a protected piece
         else:
-            return not dest_piece.is_protected
+            if dest_piece.is_protected:
+                return FeedbackInfo.CAPTURES_PROTECTED_PIECE
+            else:
+                return FeedbackInfo.VALID
 
-    def move_piece(self, src: Location, dest: Location) -> None:
-        if not self.can_move_piece(src, dest):
-            raise Exception("Error: Invalid move was sent.")
+    def is_move_valid(self, src: Location, dest: Location, player: Player) -> bool:
+        return self.get_move_feedback_info(src, dest, player) == FeedbackInfo.VALID
 
-        src_piece: Piece | None = self._board.get_piece(src)
-        if src_piece is None:
-            raise Exception(f"Error: Move was called from empty square {src}.")
+    def _make_valid_move_feedback(
+        self, src: Location, dest: Location, player: Player
+    ) -> Feedback:
+        return Feedback(
+            move_src=src,
+            move_dest=dest,
+            info=self.get_move_feedback_info(src, dest, player),
+        )
 
-        # ---
+    def _make_invalid_move_feedback(
+        self, src: Location, dest: Location, player: Player
+    ) -> Feedback:
+        return Feedback(
+            move_src=src,
+            move_dest=None,
+            info=self.get_move_feedback_info(src, dest, player),
+        )
 
-        dest_piece: Piece | None = self._board.get_piece(dest)
-        if dest_piece is not None:
-            # todo: verify piece capture logic
-            match dest_piece.player:
-                case Player.PLAYER_1:
-                    receiving_player: Player = Player.PLAYER_2
-                case Player.PLAYER_2:
-                    receiving_player: Player = Player.PLAYER_1
-
-            self._captured_pieces[receiving_player].append(dest_piece.piece_kind)
-
-            self._board.remove_piece(dest)
-
-        # ---
-
-        src_piece.move(dest)
-
-    def move_from_view(self, src: Location, dest: Location, player: Player) -> Feedback:
-        if self.can_move_piece(src, dest):
-            # todo: update state as well
-            self.move_piece(src, dest)
-            return Feedback(move=(src, dest), info=FeedbackInfo.VALID)
-        elif player != self._state.player_to_move:
-            return Feedback(move=(src, dest), info=FeedbackInfo.NOT_CURRENT_PLAYER)
+    def move_piece(self, src: Location, dest: Location, player: Player) -> Feedback:
+        if not self.is_move_valid(src, dest, player):
+            return self._make_invalid_move_feedback(src, dest, player)
         else:
-            return Feedback(move=(src, dest), info=FeedbackInfo.INVALID)
+            ret: Feedback = self._make_valid_move_feedback(src, dest, player)
+
+            # ---
+
+            src_piece: Piece | None = self._board.get_piece(src)
+            if src_piece is None:
+                raise Exception(f"Error: Move was called from empty square {src}.")
+
+            # ---
+
+            dest_piece: Piece | None = self._board.get_piece(dest)
+            if dest_piece is not None:
+                # todo: verify piece capture logic
+                match dest_piece.player:
+                    case Player.PLAYER_1:
+                        receiving_player: Player = Player.PLAYER_2
+                    case Player.PLAYER_2:
+                        receiving_player: Player = Player.PLAYER_1
+
+                self._captured_pieces[receiving_player].append(dest_piece.piece_kind)
+
+                self._board.remove_piece(dest)
+
+            # ---
+
+            # update piece with new position
+            src_piece.move(dest)
+
+            # add piece to new position
+            self._board.add_piece(src_piece)
+
+            # clear old position from board
+            self._board.remove_piece(src)
+
+            # ---
+
+            return ret

@@ -32,7 +32,7 @@ class BoardGameController:
         view.run()
 
     def on_make_move(self, old: Location, new: Location, player: Player):
-        feedback: Feedback = self._model.move_from_view(old, new, player)
+        feedback: Feedback = self._model.move_piece(old, new, player)
         self._on_state_change(self._model)
         print(
             f"model says that the move is {"Valid" if feedback.info == FeedbackInfo.VALID else "Invalid"}"

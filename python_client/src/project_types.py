@@ -37,6 +37,9 @@ class GameState(Protocol):
     @property
     def move(self) -> int: ...
 
+    @property
+    def game_status(self) -> GameStatus: ...
+
 
 # --- MARK: Player
 

@@ -5,6 +5,7 @@ from dataclasses import dataclass, field, replace
 from typing import Protocol
 
 from project_types import (
+    GameStatus,
     Player,
     PieceKind,
     Location,
@@ -377,6 +378,24 @@ class BoardGameModel:
     @property
     def move(self) -> int:
         return self._state.move
+
+    @property
+    def game_status(self) -> GameStatus:
+        if len(self.protected_pieces(Player.PLAYER_1)) > 0:
+            if len(self.protected_pieces(Player.PLAYER_2)):
+                return GameStatus.ONGOING
+            else:
+                return GameStatus.PLAYER_1_WIN
+        else:
+            if len(self.protected_pieces(Player.PLAYER_2)):
+                return GameStatus.PLAYER_2_WIN
+            else:
+                return GameStatus.DRAW
+
+    def protected_pieces(self, player: Player) -> list[Piece]:
+        return [
+            piece for piece in self._board.pieces.values() if piece.player == player
+        ]
 
     def new_game(self) -> None:
         self._board_setter.setup_board(self._board)

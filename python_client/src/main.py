@@ -7,16 +7,16 @@ from controller import BoardGameController
 
 def main() -> None:
     try:
-        networking: CS150241ProjectNetworking | None = (
-            CS150241ProjectNetworking.connect("localhost", 15000)
-        )
-    except Exception:
+        networking: CS150241ProjectNetworking | None = CS150241ProjectNetworking.connect("localhost", 15000)
+    except ConnectionRefusedError:
+        print('Network not found.')
         networking = None
 
     player_id: PlayerId = networking.player_id if networking else PlayerId(1)
+    print(f'Running game as Player {player_id}.')
 
     model: BoardGameModel = BoardGameModel.setup_game(player_id)
-    view: BoardGameView = BoardGameView(model, 1)
+    view: BoardGameView = BoardGameView(model)
     controller: BoardGameController = BoardGameController(model, view)
 
     controller.start()

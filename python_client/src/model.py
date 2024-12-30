@@ -362,6 +362,10 @@ class BoardGameModel:
         self._board_setter.setup_board(self._board)
 
     @property
+    def player(self) -> Player:
+        return self._player
+
+    @property
     def max_moves(self) -> int:
         return self._state.max_moves
 

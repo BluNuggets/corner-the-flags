@@ -20,6 +20,9 @@ class GameStatus(StrEnum):
 # basically a ReadOnly(Model+State)
 class GameState(Protocol):
     @property
+    def player(self) -> Player: ...
+    
+    @property
     def max_moves(self) -> int: ...
 
     @property

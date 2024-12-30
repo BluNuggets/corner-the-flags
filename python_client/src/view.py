@@ -515,7 +515,7 @@ class BoardGameView:
     _captureBox: Rect
     _active_cell_to_snap: Rect | None
 
-    def __init__(self, state: GameState, player: int):
+    def __init__(self, state: GameState):
         pygame.init()
 
         self._width = SCREEN_WIDTH
@@ -530,7 +530,7 @@ class BoardGameView:
 
         # todo: setup networking to confirm this works
         self._current_player = state.player_to_move
-        self._player = Player.PLAYER_1 if player == 1 else Player.PLAYER_2
+        self._player = state.player
 
         # grid initialization comes after player initialization
         self._grid = Grid(

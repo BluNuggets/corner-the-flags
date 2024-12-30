@@ -1,4 +1,5 @@
-# from cs150241project_networking import CS150241ProjectNetworking
+from cs150241project_networking import CS150241ProjectNetworking
+from cs150241project_networking.main import PlayerId
 from model import BoardGameModel
 from view import BoardGameView, GameStateObserver
 from project_types import (
@@ -32,7 +33,7 @@ class BoardGameController:
 
     def on_make_move(self, old: Location, new: Location, player: Player):
         feedback: Feedback = self._model.move_from_view(old, new, player)
-        self._on_state_change(self._model.state)
+        self._on_state_change(self._model)
         print(
             f"model says that the move is {"Valid" if feedback.info == FeedbackInfo.VALID else "Invalid"}"
         )
@@ -51,9 +52,13 @@ class BoardGameController:
 
 
 def main() -> None:
-    # networking: CS150241ProjectNetworking = CS150241ProjectNetworking.connect("localhost", 15000)
-    model: BoardGameModel = BoardGameModel.setup_game()
-    view: BoardGameView = BoardGameView(model.state, 1)
+    networking: CS150241ProjectNetworking = CS150241ProjectNetworking.connect(
+        "localhost", 15000
+    )
+    player_id: PlayerId = networking.player_id if PlayerId else PlayerId(1)
+
+    model: BoardGameModel = BoardGameModel.setup_game(player_id)
+    view: BoardGameView = BoardGameView(model, 1)
     controller: BoardGameController = BoardGameController(model, view)
 
     controller.start()

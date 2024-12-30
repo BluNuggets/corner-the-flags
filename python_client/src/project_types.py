@@ -1,7 +1,8 @@
 from __future__ import annotations
-from dataclasses import dataclass, replace
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from enum import StrEnum
-from typing import ClassVar, Protocol
+from typing import Protocol
 
 # --- MARK: GameStatus
 
@@ -16,33 +17,28 @@ class GameStatus(StrEnum):
 # --- MARK: GameState
 
 
-@dataclass(frozen=True)
-class GameState:
-    # constants
-    MAX_MOVES: ClassVar[int] = 3
-    BOARD_DIMENSIONS: ClassVar[tuple[int, int]] = (8, 8)
-    # fields
-    captured_pieces: dict[Player, list[PieceKind]]
-    player_to_move: Player
-    turn: int
-    move: int
+# basically a ReadOnly(Model+State)
+class GameState(Protocol):
+    @property
+    def max_moves(self) -> int: ...
 
-    def new_game(self) -> GameState:
-        return GameState(
-            captured_pieces={}, player_to_move=Player.PLAYER_1, turn=1, move=1
-        )
+    @property
+    def board(self) -> BoardData: ...
 
-    def next_move(self) -> GameState:
-        if self.move < GameState.MAX_MOVES:
-            return replace(self, move=self.move + 1)
-        else:
-            match self.player_to_move:
-                case Player.PLAYER_1:
-                    return replace(self, player_to_move=Player.PLAYER_2, move=1)
-                case Player.PLAYER_2:
-                    return replace(
-                        self, player_to_move=Player.PLAYER_1, turn=self.turn + 1, move=1
-                    )
+    @property
+    def captured_pieces(self) -> Mapping[Player, Sequence[PieceKind]]: ...
+
+    @property
+    def player_to_move(self) -> Player: ...
+
+    @property
+    def turn(self) -> int: ...
+
+    @property
+    def move(self) -> int: ...
+
+    @property
+    def game_status(self) -> GameStatus: ...
 
 
 # --- MARK: Player
@@ -94,14 +90,25 @@ class Location:
 
 
 class PieceData(Protocol):
-    _piece_kind: PieceKind
-    _location: Location
-
     @property
     def piece_kind(self) -> PieceKind: ...
 
     @property
     def location(self) -> Location: ...
+
+
+# --- MARK: BoardData
+
+
+class BoardData(Protocol):
+    @property
+    def rows(self) -> int: ...
+
+    @property
+    def columns(self) -> int: ...
+
+    @property
+    def pieces(self) -> Mapping[Location, PieceData]: ...
 
 
 # todo: does this stay here in project_types?

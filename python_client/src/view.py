@@ -536,8 +536,9 @@ class BoardGameView:
         self._grid = Grid(
             self._width,
             self._height,
-            state.BOARD_DIMENSIONS[0],
-            state.BOARD_DIMENSIONS[1],
+            # todo: not sure if rows or columns should've gone first
+            state.board.rows,
+            state.board.columns,
             self._player,
         )
         self._setup_initial_positions()

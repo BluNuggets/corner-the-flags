@@ -19,7 +19,7 @@ def main() -> None:
 
     model: BoardGameModel = BoardGameModel.setup_game(player_id)
     view: BoardGameView = BoardGameView(model)
-    controller: BoardGameController = BoardGameController(model, view)
+    controller: BoardGameController = BoardGameController(model, view, networking)
 
     controller.start()
 

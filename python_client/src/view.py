@@ -1,7 +1,10 @@
-import pygame
 from math import ceil
+import os
+import pygame
 from pygame import Rect, Surface, Clock, Font
+import sys
 from typing import Any, Protocol
+from cs150241project_networking import CS150241ProjectNetworking, Message
 from project_types import (
     Player,
     PieceKind,
@@ -12,8 +15,6 @@ from project_types import (
     Feedback,
     FeedbackInfo,
 )
-import sys
-import os
 # import random
 # from cs150241project_networking import CS150241ProjectNetworking
 
@@ -493,6 +494,10 @@ class MakeNewPieceObserver(Protocol):
     def on_make_new_piece(self, piece_kind: PieceKind, dest: Location): ...
 
 
+class ReceiveMessageObserver(Protocol):
+    def on_receive_message(self, message: Message): ...
+
+
 class GameStateObserver(Protocol):
     def on_state_change(self, state: GameState): ...
 
@@ -514,6 +519,11 @@ class BoardGameView:
 
     _captureBox: Rect
     _active_cell_to_snap: Rect | None
+
+    # observers
+    _make_move_observers: list[MakeMoveObserver]
+    _make_new_piece_observers: list[MakeNewPieceObserver]
+    _receive_message_observers: list[ReceiveMessageObserver]
 
     def __init__(self, state: GameState):
         pygame.init()
@@ -544,12 +554,13 @@ class BoardGameView:
         self._setup_initial_positions()
 
         # create observers for controller
-        self._make_move_observers: list[MakeMoveObserver] = []
-        self._make_new_piece_observers: list[MakeNewPieceObserver] = []
+        self._make_move_observers = []
+        self._make_new_piece_observers = []
+        self._receive_message_observers = []
 
         self._active_cell_to_snap = None
 
-    # will have to fix this to follow OCP
+    # todo: will have to fix this to follow OCP
     def _setup_initial_positions(self):
         init_pos = BoardGamePiecePositions()
 
@@ -579,14 +590,30 @@ class BoardGameView:
     def register_make_new_piece_observer(self, observer: MakeNewPieceObserver):
         self._make_new_piece_observers.append(observer)
 
+    def register_receive_message_observer(self, observer: ReceiveMessageObserver):
+        self._receive_message_observers.append(observer)
+
     # --- MARK: Run PyGame
-    def run(self):
+    def run(self, networking: CS150241ProjectNetworking | None):
         active_piece_index: Location | None = None
         active_capture_piece_index: int | None = None
+
+        previous_message: Message | None = None
+        latest_message: Message | None = None
 
         is_running: bool = True
 
         while is_running:
+            if networking is not None:
+                for m in networking.recv():
+                    latest_message = m
+
+                if latest_message is not None and previous_message != latest_message:
+                    for observer in self._receive_message_observers:
+                        observer.on_receive_message(latest_message)
+
+                    previous_message = latest_message
+
             for event in pygame.event.get():
                 match event.type:
                     case pygame.MOUSEBUTTONDOWN:
@@ -668,7 +695,9 @@ class BoardGameView:
                                     ):
                                         self._active_cell_to_snap = snap_cell
                                         self._make_move(
-                                            old_cell_location, new_cell_location
+                                            old_cell_location,
+                                            new_cell_location,
+                                            networking,
                                         )
                                     else:
                                         piece.reset_to_spot()
@@ -697,7 +726,9 @@ class BoardGameView:
                                     ):
                                         self._active_cell_to_snap = snap_cell
                                         self._make_new_piece(
-                                            cap_piece.piece_kind, new_cell_location
+                                            cap_piece.piece_kind,
+                                            new_cell_location,
+                                            networking,
                                         )
                                     else:
                                         cap_piece.reset_to_spot()
@@ -740,13 +771,28 @@ class BoardGameView:
 
         self._capture_box.render(self._screen, self._font)
 
-    def _make_move(self, old: Location, new: Location):
+    def _make_move(
+        self, old: Location, new: Location, networking: CS150241ProjectNetworking | None
+    ):
         for observer in self._make_move_observers:
             observer.on_make_move(old, new, self._player)
 
-    def _make_new_piece(self, piece_kind: PieceKind, dest: Location):
+        if networking is not None:
+            # todo: implement move piece message
+            networking.send(f'frame {self._frame_count} sent: move piece')
+
+    def _make_new_piece(
+        self,
+        piece_kind: PieceKind,
+        dest: Location,
+        networking: CS150241ProjectNetworking | None,
+    ):
         for observer in self._make_new_piece_observers:
             observer.on_make_new_piece(piece_kind, dest)
+
+        if networking is not None:
+            # todo: implement make new piece message
+            networking.send(f'frame {self._frame_count} sent: make new piece')
 
     def update_move(self, fb: Feedback):
         active_piece = self._pieces[fb.move_src]

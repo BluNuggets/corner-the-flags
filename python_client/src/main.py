@@ -1,3 +1,4 @@
+from websockets.exceptions import InvalidStatus
 from cs150241project_networking import CS150241ProjectNetworking
 from cs150241project_networking.main import PlayerId
 from model import BoardGameModel
@@ -12,6 +13,9 @@ def main() -> None:
         )
     except ConnectionRefusedError:
         print('Network not found.')
+        networking = None
+    except InvalidStatus:
+        print('Network full.')
         networking = None
 
     player_id: PlayerId = networking.player_id if networking else PlayerId(1)

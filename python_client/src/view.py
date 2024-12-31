@@ -48,7 +48,7 @@ class Position:
                 self.x + other.x,
                 self.y + other.y
             )
-        elif type(other) == tuple and list(map(type, other)) == [int, int]:
+        elif type(other) is tuple and list(map(type, other)) == [int, int]:
             return Position(
                 self.x + other[0],
                 self.y + other[1]
@@ -69,7 +69,7 @@ class Position:
                 other.x - self.x,
                 other.y - self.y
             )
-        elif type(other) == tuple and list(map(type, other)) == [int, int]:
+        elif type(other) is tuple and list(map(type, other)) == [int, int]:
             return Position(
                 other[0] - self.x,
                 other[1] - self.y
@@ -83,7 +83,7 @@ class Position:
                 self.x - other.x,
                 self.y - other.y
             )
-        elif type(other) == tuple and list(map(type, other)) == [int, int]:
+        elif type(other) is tuple and list(map(type, other)) == [int, int]:
             return Position(
                 self.x - other[0],
                 self.y - other[1]
@@ -631,7 +631,7 @@ class BoardGameView:
                 self._grid.cell_length,
                 player_piece_kind[0],
             )
-
+    
     def _setup_image(self, pk: PieceKind) -> str:
         match pk:
             case PieceKind.PAWN:

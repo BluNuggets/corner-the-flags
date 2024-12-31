@@ -1,31 +1,32 @@
+from websockets.exceptions import InvalidStatus
 from cs150241project_networking import CS150241ProjectNetworking
 from cs150241project_networking.main import PlayerId
 from model import BoardGameModel
-
-
-# todo: rename BoardGameController with actual board game name
-class BoardGameController:
-    _model: BoardGameModel
-    # _view: BoardGameView
-
-    def __init__(self, model: BoardGameModel) -> None:
-        self._model = model
-        # self._view = view
-
-    def start(self) -> None:
-        print("temporary print - controller.start()")
+from view import BoardGameView
+from controller import BoardGameController
 
 
 def main() -> None:
-    networking: CS150241ProjectNetworking = CS150241ProjectNetworking.connect(
-        "localhost", 15000
-    )
-    player_id: PlayerId = networking.player_id if PlayerId else PlayerId(1)
+    try:
+        networking: CS150241ProjectNetworking | None = (
+            CS150241ProjectNetworking.connect('localhost', 15000)
+        )
+    except ConnectionRefusedError:
+        print('Network not found.')
+        networking = None
+    except InvalidStatus:
+        print('Network full.')
+        networking = None
+
+    player_id: PlayerId = networking.player_id if networking else PlayerId(1)
+    print(f'Running game as Player {player_id}.')
 
     model: BoardGameModel = BoardGameModel.setup_game(player_id)
-    controller: BoardGameController = BoardGameController(model)
+    view: BoardGameView = BoardGameView(model)
+    controller: BoardGameController = BoardGameController(model, view, networking)
+
     controller.start()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

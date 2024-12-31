@@ -2,16 +2,16 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Protocol
+from typing import Protocol, TypedDict
 
 # --- MARK: GameStatus
 
 
 class GameStatus(StrEnum):
-    ONGOING = "Ongoing"
-    DRAW = "Draw"
-    PLAYER_1_WIN = "Player 1 wins"
-    PLAYER_2_WIN = "Player 2 wins"
+    ONGOING = 'Ongoing'
+    DRAW = 'Draw'
+    PLAYER_1_WIN = 'Player 1 wins'
+    PLAYER_2_WIN = 'Player 2 wins'
 
 
 # --- MARK: GameState
@@ -19,6 +19,9 @@ class GameStatus(StrEnum):
 
 # basically a ReadOnly(Model+State)
 class GameState(Protocol):
+    @property
+    def player(self) -> Player: ...
+
     @property
     def max_moves(self) -> int: ...
 
@@ -45,17 +48,17 @@ class GameState(Protocol):
 
 
 class Player(StrEnum):
-    PLAYER_1 = "Player 1"
-    PLAYER_2 = "Player 2"
+    PLAYER_1 = 'Player 1'
+    PLAYER_2 = 'Player 2'
 
 
 # --- MARK: PieceKind
 
 
 class PieceKind(StrEnum):
-    PAWN = "Pawn"
-    KING = "King"
-    LANCE = "Lance"
+    PAWN = 'Pawn'
+    KING = 'King'
+    LANCE = 'Lance'
 
 
 # --- MARK: Location
@@ -143,3 +146,61 @@ class BoardGamePiecePositions:
             Location(7, 8): (Player.PLAYER_2, PieceKind.PAWN),
             Location(8, 1): (Player.PLAYER_2, PieceKind.KING),
         }
+
+
+# --- MARK: FeedbackInfo / Feedback
+
+
+class FeedbackInfo(StrEnum):
+    NOT_CURRENT_PLAYER = 'Not current player'
+    NO_PIECE_MOVED = 'No piece moved'
+    SQUARE_OUT_OF_BOUNDS = 'Square out of bounds'
+    PIECE_DOES_NOT_BELONG_TO_PLAYER = 'Piece does not belong to player'
+    PIECE_CANNOT_REACH_SQUARE = 'Piece cannot reach square'
+    CAPTURES_OWN_PIECE = 'Captures own piece'
+    CAPTURES_PROTECTED_PIECE = 'Captures protected piece'
+    VALID = 'Valid'
+
+
+@dataclass(frozen=True)
+class Feedback:
+    move_src: Location
+    move_dest: Location | None
+    info: FeedbackInfo
+
+
+# --- MARK: GameMessageDict
+
+
+class GameMessageDict(TypedDict, total=True):
+    frame: int
+    message_type: GameMessageType
+    message_content: MakeMoveGameMessageContentDict
+
+
+# --- MARK: GameMessageType
+
+# type JSONType = None | int | str | bool | list[JSONType] | dict[str, JSONType]
+
+
+class GameMessageType(StrEnum):
+    MOVE = 'move'
+    INVALID = 'invalid'
+
+    @classmethod
+    def _missing_(cls, value: object) -> GameMessageType:
+        return GameMessageType.INVALID
+
+
+# --- MARK: GameMessageContentDict
+
+
+class LocationDict(TypedDict):
+    row: int
+    column: int
+
+
+class MakeMoveGameMessageContentDict(TypedDict):
+    src: LocationDict
+    dest: LocationDict
+    player: Player

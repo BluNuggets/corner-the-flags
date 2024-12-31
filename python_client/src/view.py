@@ -44,15 +44,9 @@ class Position:
 
     def __add__(self, other: Position | tuple[int, int]):
         if isinstance(other, Position):
-            return Position(
-                self.x + other.x,
-                self.y + other.y
-            )
+            return Position(self.x + other.x, self.y + other.y)
         elif type(other) is tuple and list(map(type, other)) == [int, int]:
-            return Position(
-                self.x + other[0],
-                self.y + other[1]
-            )
+            return Position(self.x + other[0], self.y + other[1])
         else:
             raise TypeError('Error: Invalid type for __add__ with Position()')
 
@@ -65,29 +59,17 @@ class Position:
 
     def __rsub__(self, other: Position | tuple[int, int]):
         if isinstance(other, Position):
-            return Position(
-                other.x - self.x,
-                other.y - self.y
-            )
+            return Position(other.x - self.x, other.y - self.y)
         elif type(other) is tuple and list(map(type, other)) == [int, int]:
-            return Position(
-                other[0] - self.x,
-                other[1] - self.y
-            )
+            return Position(other[0] - self.x, other[1] - self.y)
         else:
             raise TypeError('Error: Invalid type for __rsub__ with Position()')
 
     def __sub__(self, other: Position | tuple[int, int]):
         if isinstance(other, Position):
-            return Position(
-                self.x - other.x,
-                self.y - other.y
-            )
+            return Position(self.x - other.x, self.y - other.y)
         elif type(other) is tuple and list(map(type, other)) == [int, int]:
-            return Position(
-                self.x - other[0],
-                self.y - other[1]
-            )
+            return Position(self.x - other[0], self.y - other[1])
         else:
             raise TypeError('Error: Invalid type for __sub__ with Position()')
 
@@ -204,7 +186,9 @@ class Grid:
     _player: Player
     _margin: int = 20
 
-    def __init__(self, s_w: int, s_h: int, dim_x: int, dim_y: int, player: Player) -> None:
+    def __init__(
+        self, s_w: int, s_h: int, dim_x: int, dim_y: int, player: Player
+    ) -> None:
         self._relative_width = s_w - int(REL_CAPTURED_BOX_WIDTH * s_w)
         self._relative_height = s_h
         self._dim_x = dim_x
@@ -235,7 +219,7 @@ class Grid:
                         self._cell_length,
                     )
                 )
-                
+
             # append row to grid (dependent on Player ID)
             match self._player:
                 case Player.PLAYER_1:
@@ -280,7 +264,7 @@ class Grid:
     # note: location is 1-indexed
     def get_cell_from_location(self, loc: Location) -> Rect:
         return self._grid[loc.row - 1][loc.column - 1]
-    
+
     def get_location_from_position(self, pos: Position) -> Location:
         zero_zero_location: Rect = self._grid[0][0]
         match self._player:
@@ -295,17 +279,17 @@ class Grid:
                     ((pos.y - zero_zero_location.y) // self._cell_length) + 1,
                     ((zero_zero_location.x - pos.x) // self._cell_length) + 1,
                 )
-    
+
     def get_position_from_cell(self, cell: Rect) -> Position:
         return Position(cell.x, cell.y)
-    
+
     # function composition
     def get_location_from_cell(self, cell: Rect) -> Location:
         return self.get_location_from_position(self.get_position_from_cell(cell))
-    
+
     def get_position_from_location(self, loc: Location) -> Position:
         return self.get_position_from_cell(self.get_cell_from_location(loc))
-    
+
     def get_cell_from_position(self, pos: Position) -> Rect:
         return self.get_cell_from_location(self.get_location_from_position(pos))
 
@@ -631,7 +615,7 @@ class BoardGameView:
                 self._grid.cell_length,
                 player_piece_kind[0],
             )
-    
+
     def _setup_image(self, pk: PieceKind) -> str:
         match pk:
             case PieceKind.PAWN:
@@ -648,7 +632,9 @@ class BoardGameView:
     def register_make_new_piece_observer(self, observer: MakeNewPieceObserver) -> None:
         self._make_new_piece_observers.append(observer)
 
-    def register_receive_message_observer(self, observer: ReceiveMessageObserver) -> None:
+    def register_receive_message_observer(
+        self, observer: ReceiveMessageObserver
+    ) -> None:
         self._receive_message_observers.append(observer)
 
     # --- MARK: Run PyGame
@@ -739,14 +725,17 @@ class BoardGameView:
                                             piece.last_stable_position
                                         )
                                     )
-                                    snap_cell: Rect | None = self._grid.snap_position(event.pos)
-                                    
+                                    snap_cell: Rect | None = self._grid.snap_position(
+                                        event.pos
+                                    )
 
                                     # todo: validate move through model
                                     if snap_cell is None:
                                         piece.reset_to_spot()
                                     else:
-                                        new_cell_location: Location = self._grid.get_location_from_cell(snap_cell)
+                                        new_cell_location: Location = (
+                                            self._grid.get_location_from_cell(snap_cell)
+                                        )
 
                                         self._active_cell_to_snap = snap_cell
                                         self._make_move(
@@ -754,7 +743,6 @@ class BoardGameView:
                                             new_cell_location,
                                             networking,
                                         )
-                                        
 
                                     # point active piece index to nothing
                                     self._active_cell_to_snap = None
@@ -766,20 +754,24 @@ class BoardGameView:
                                             active_capture_piece_index
                                         ]
                                     )
-                                    snap_cell: Rect | None = self._grid.snap_position(event.pos)
+                                    snap_cell: Rect | None = self._grid.snap_position(
+                                        event.pos
+                                    )
 
                                     # todo: validate move through model
                                     if snap_cell is None:
                                         cap_piece.reset_to_spot()
                                     else:
-                                        new_cell_location: Location = self._grid.get_location_from_cell(snap_cell)
+                                        new_cell_location: Location = (
+                                            self._grid.get_location_from_cell(snap_cell)
+                                        )
                                         self._active_cell_to_snap = snap_cell
                                         self._make_new_piece(
                                             cap_piece.piece_kind,
                                             new_cell_location,
                                             networking,
                                         )
-                                        
+
                                     active_capture_piece_index = None
 
                             case _:

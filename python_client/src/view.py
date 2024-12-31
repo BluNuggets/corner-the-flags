@@ -143,49 +143,49 @@ class Piece:
         return self._location
 
     @property
-    def position(self):
+    def position(self) -> Position:
         return self._position
 
     @property
-    def last_stable_position(self):
+    def last_stable_position(self) -> Position:
         return self._last_stable_position
 
     @property
-    def image(self):
+    def image(self) -> Surface:
         return self._image
 
     @property
-    def collision_box(self):
+    def collision_box(self) -> Rect:
         return self._collision_box
 
     @property
-    def owned_by(self):
+    def owned_by(self) -> Player:
         return self._owned_by
 
-    def render(self, screen: Surface):
+    def render(self, screen: Surface) -> None:
         # Note: it is important to render the collision box BEFORE the image to make the collision box "invisible"
         pygame.draw.rect(screen, 'chocolate1', self._collision_box)
         screen.blit(self._image, (self._position.x, self._position.y))
 
     # move both image and collision box using the relative position argument
-    def move_rel(self, rel_position: tuple[int, int]):
+    def move_rel(self, rel_position: tuple[int, int]) -> None:
         self._collision_box.move_ip(rel_position)
         # update self._position
         self._position += rel_position
 
-    def move_abs(self, abs_position: tuple[int, int]):
+    def move_abs(self, abs_position: tuple[int, int]) -> None:
         self._collision_box.move_ip(abs_position)
         # overwrite self._position
         self._position = Position.from_tuple(abs_position)
 
-    def snap(self, cell_to_snap: Rect):
+    def snap(self, cell_to_snap: Rect) -> None:
         self.collision_box.clamp_ip(cell_to_snap)
         self._position = Position(cell_to_snap.x, cell_to_snap.y)
         # update new stable position
         self._last_stable_position = self._position
 
     # return piece to previous spot
-    def reset_to_spot(self):
+    def reset_to_spot(self) -> None:
         self._collision_box.update(
             (self._last_stable_position.x, self._last_stable_position.y),
             (self._size, self._size),
@@ -204,7 +204,7 @@ class Grid:
     _player: Player
     _margin: int = 20
 
-    def __init__(self, s_w: int, s_h: int, dim_x: int, dim_y: int, player: Player):
+    def __init__(self, s_w: int, s_h: int, dim_x: int, dim_y: int, player: Player) -> None:
         self._relative_width = s_w - int(REL_CAPTURED_BOX_WIDTH * s_w)
         self._relative_height = s_h
         self._dim_x = dim_x
@@ -259,7 +259,7 @@ class Grid:
             center_index = dimension // 2
             return (center_screen) + (length * (num - center_index))
 
-    def render(self, screen: Surface):
+    def render(self, screen: Surface) -> None:
         for ith, row in enumerate(self._grid):
             for jth, col in enumerate(row):
                 # following chess.com format (LOL)
@@ -329,7 +329,7 @@ class Button:
 
         self._render = font.render(self._s, True, self._txt_c, self._bg_c)
         self._rect = self._render.get_rect()
-        self._rect.center = (self._position.x, self._position.y)
+        self._rect.center = tuple(self._position)
 
     @property
     def content(self) -> str:
@@ -388,7 +388,7 @@ class CapturedPiece:
     def collision_box(self) -> Rect:
         return self._collision_box
 
-    def render(self, screen: Surface):
+    def render(self, screen: Surface) -> None:
         pygame.draw.rect(screen, 'chocolate1', self._collision_box)
         screen.blit(self._image, tuple(self._position))
 
@@ -416,7 +416,7 @@ class CaptureBox:
     _slice: tuple[int, int]
     _page: int
 
-    def __init__(self, font: Font):
+    def __init__(self, font: Font) -> None:
         self._width = int(SCREEN_WIDTH * REL_CAPTURED_BOX_WIDTH)
         self._height = SCREEN_HEIGHT
 
@@ -477,7 +477,7 @@ class CaptureBox:
 
         # render header
         header_render: Surface = font.render('Captures', True, 'black', 'sandybrown')
-        header_rect = header_render.get_rect()
+        header_rect: Rect = header_render.get_rect()
         header_rect.center = (
             self._position.x + (self._width // 2),
             self._position.y + 20,
@@ -497,7 +497,7 @@ class CaptureBox:
             'black',
             'sandybrown',
         )
-        footer_rect = footer_render.get_rect()
+        footer_rect: Rect = footer_render.get_rect()
         footer_rect.center = (self._position.x + (self._width // 2), self._height - 20)
         screen.blit(footer_render, footer_rect)
 

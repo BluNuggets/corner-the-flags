@@ -241,7 +241,7 @@ class Grid:
                 case Player.PLAYER_1:
                     self._grid.insert(0, temp_row)
                 case Player.PLAYER_2:
-                    #temp_row.reverse()
+                    temp_row.reverse()
                     self._grid.append(temp_row)
 
     def center_align(self, num: int, dimension: int, length: int, is_x: bool) -> int:
@@ -283,18 +283,18 @@ class Grid:
     
     def get_location_from_position(self, pos: Position) -> Location:
         zero_zero_location: Rect = self._grid[0][0]
-        # return location based on player_id (due to a flipped board)
-        return (
-            Location(
-                ((pos.y - zero_zero_location.y) // self._cell_length) + 1,
-                ((pos.x - zero_zero_location.x) // self._cell_length) + 1,
-            )
-            if self._player == Player.PLAYER_2
-            else Location(
-                ((zero_zero_location.y - pos.y) // self._cell_length) + 1,
-                ((pos.x - zero_zero_location.x) // self._cell_length) + 1,
-            )
-        )
+        match self._player:
+            case Player.PLAYER_1:
+                return Location(
+                    ((zero_zero_location.y - pos.y) // self._cell_length) + 1,
+                    ((pos.x - zero_zero_location.x) // self._cell_length) + 1,
+                )
+            case Player.PLAYER_2:
+                # return location based on player_id (due to a board rotated 180 degrees)
+                return Location(
+                    ((pos.y - zero_zero_location.y) // self._cell_length) + 1,
+                    ((zero_zero_location.x - pos.x) // self._cell_length) + 1,
+                )
     
     def get_position_from_cell(self, cell: Rect) -> Position:
         return Position(cell.x, cell.y)

@@ -741,6 +741,7 @@ class BoardGameView:
                                         self._make_move(
                                             old_cell_location,
                                             new_cell_location,
+                                            self._player,
                                             networking,
                                         )
 
@@ -811,7 +812,7 @@ class BoardGameView:
         self._capture_box.render(self._screen, self._font)
 
     def _make_move(
-        self, old: Location, new: Location, networking: CS150241ProjectNetworking | None
+        self, old: Location, new: Location, player: Player, networking: CS150241ProjectNetworking | None
     ) -> None:
         for observer in self._make_move_observers:
             observer.on_make_move(old, new, self._player)
@@ -821,7 +822,7 @@ class BoardGameView:
             message_content: MakeMoveGameMessageContentDict = {
                 'src': {'row': old.row, 'column': old.column},
                 'dest': {'row': new.row, 'column': new.column},
-                'player': self._player,
+                'player': player,
             }
 
             data: GameMessageDict = {

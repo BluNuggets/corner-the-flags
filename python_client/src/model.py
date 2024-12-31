@@ -414,28 +414,33 @@ class BoardGameModel:
             Player.PLAYER_2: [],
         }
 
-        replace(self._state, player_to_move=Player.PLAYER_1, turn=1, move=1)
+        self._state = replace(self._state, _player_to_move=Player.PLAYER_1, _turn=1, _move=1)
 
     def next_move(self) -> None:
+        # update turn/move number     
         if self.move < self.max_moves:
-            replace(
+            self._state = replace(
                 self._state,
-                move=self.move + 1,
+                _move=self._state.move + 1,
             )
         else:
+            self._state = replace(
+                self._state,
+                _turn=self._state.turn + 1,
+                _move=1,
+            )
+
+            # change player to move
             match self.player_to_move:
                 case Player.PLAYER_1:
-                    replace(
+                    self._state = replace(
                         self._state,
-                        player_to_move=Player.PLAYER_2,
-                        move=1,
+                        _player_to_move=Player.PLAYER_2
                     )
                 case Player.PLAYER_2:
-                    replace(
+                    self._state = replace(
                         self._state,
-                        player_to_move=Player.PLAYER_1,
-                        turn=self.turn + 1,
-                        move=1,
+                        _player_to_move=Player.PLAYER_1
                     )
 
     def get_move_feedback_info(
@@ -547,5 +552,7 @@ class BoardGameModel:
             self._board.remove_piece(src)
 
             # ---
+
+            self.next_move()
 
             return ret

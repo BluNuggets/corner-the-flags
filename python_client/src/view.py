@@ -1,3 +1,4 @@
+from __future__ import annotations
 import json
 from math import ceil
 import os
@@ -33,17 +34,62 @@ class Position:
     _x: int
     _y: int
 
+    @classmethod
+    def from_tuple(cls, tup: tuple[int, int]) -> Position:
+        return cls(tup[0], tup[1])
+
     def __init__(self, x: int, y: int) -> None:
         self._x = x
         self._y = y
 
-    def __repr__(self) -> str:
-        return f'{self._x, self._y}'
+    def __add__(self, other: Position | tuple[int, int]):
+        if isinstance(other, Position):
+            return Position(
+                self.x + other.x,
+                self.y + other.y
+            )
+        elif type(other) == tuple[int, int]:
+            return Position(
+                self.x + other[0],
+                self.y + other[1]
+            )
+        else:
+            raise TypeError('Error: Invalid type for __add__ with Position()')
 
     def __iter__(self) -> Generator[int]:
         yield self._x
         yield self._y
 
+    def __repr__(self) -> str:
+        return f'{self._x, self._y}'
+
+    def __rsub__(self, other: Position | tuple[int, int]):
+        if isinstance(other, Position):
+            return Position(
+                other.x - self.x,
+                other.y - self.y
+            )
+        elif type(other) == tuple[int, int]:
+            return Position(
+                other[0] - self.x,
+                other[1] - self.y
+            )
+        else:
+            raise TypeError('Error: Invalid type for __rsub__ with Position()')
+
+    def __sub__(self, other: Position | tuple[int, int]):
+        if isinstance(other, Position):
+            return Position(
+                self.x - other.x,
+                self.y - other.y
+            )
+        elif type(other) == tuple[int, int]:
+            return Position(
+                self.x - other[0],
+                self.y - other[1]
+            )
+        else:
+            raise TypeError('Error: Invalid type for __sub__ with Position()')
 
     @property
     def x(self) -> int:
@@ -59,9 +105,10 @@ class Piece:
     _piece_kind: PieceKind
     _location: Location
     _position: Position
+    _last_stable_position: Position
+    _size: int
     _image: Surface
     _collision_box: Rect
-    _last_stable_position: Position
     _owned_by: Player
 
     def __init__(
@@ -123,21 +170,17 @@ class Piece:
     # move both image and collision box using the relative position argument
     def move_rel(self, rel_position: tuple[int, int]):
         self._collision_box.move_ip(rel_position)
-
         # update self._position
-        # todo: position type should support basic arithmetic
-        self._position = Position(
-            self._position.x + rel_position[0], self._position.y + rel_position[1]
-        )
+        self._position += rel_position
 
     def move_abs(self, abs_position: tuple[int, int]):
         self._collision_box.move_ip(abs_position)
-        self._position = Position(abs_position[0], abs_position[1])
+        # overwrite self._position
+        self._position = Position.from_tuple(abs_position)
 
     def snap(self, cell_to_snap: Rect):
         self.collision_box.clamp_ip(cell_to_snap)
         self._position = Position(cell_to_snap.x, cell_to_snap.y)
-
         # update new stable position
         self._last_stable_position = self._position
 
@@ -157,27 +200,29 @@ class Grid:
     _dim_x: int
     _dim_y: int
     _cell_length: int
-    _grid: list[list[Rect]] = []
+    _grid: list[list[Rect]]
     _player: Player
     _margin: int = 20
 
     def __init__(self, s_w: int, s_h: int, dim_x: int, dim_y: int, player: Player):
         self._relative_width = s_w - int(REL_CAPTURED_BOX_WIDTH * s_w)
         self._relative_height = s_h
+        self._dim_x = dim_x
+        self._dim_y = dim_y
         self._cell_length = min(
             (self._relative_height - (2 * self._margin)) // dim_x,
             (self._relative_width - (2 * self._margin)) // dim_y,
         )
-        self._dim_x = dim_x
-        self._dim_y = dim_y
+        self._grid = []
         self._player = player
-        self.create_grid(dim_x, dim_y)
+
+        self._create_grid(dim_x, dim_y)
 
     @property
     def cell_length(self) -> int:
         return self._cell_length
 
-    def create_grid(self, row: int, col: int) -> None:
+    def _create_grid(self, row: int, col: int) -> None:
         for i in range(row):
             temp_row: list[Rect] = []
             for j in range(col):
@@ -198,7 +243,6 @@ class Grid:
                 case Player.PLAYER_2:
                     #temp_row.reverse()
                     self._grid.append(temp_row)
-        return
 
     def center_align(self, num: int, dimension: int, length: int, is_x: bool) -> int:
         center_screen: int = (
@@ -230,14 +274,13 @@ class Grid:
             for cell in row:
                 if cell.collidepoint(cursor_position):
                     return cell
-        return
 
     # --- Grid conversions
 
+    # note: location is 1-indexed
     def get_cell_from_location(self, loc: Location) -> Rect:
         return self._grid[loc.row - 1][loc.column - 1]
     
-    # note: location is 1-indexed
     def get_location_from_position(self, pos: Position) -> Location:
         zero_zero_location: Rect = self._grid[0][0]
         # return location based on player_id (due to a flipped board)
@@ -256,6 +299,7 @@ class Grid:
     def get_position_from_cell(self, cell: Rect) -> Position:
         return Position(cell.x, cell.y)
     
+    # function composition
     def get_location_from_cell(self, cell: Rect) -> Location:
         return self.get_location_from_position(self.get_position_from_cell(cell))
     
@@ -277,7 +321,7 @@ class Button:
 
     def __init__(
         self, s: str, position: Position, bg_color: str, txt_color: str, font: Font
-    ):
+    ) -> None:
         self._s = s
         self._position = position
         self._bg_c = bg_color
@@ -295,16 +339,16 @@ class Button:
     def collision_box(self) -> Rect:
         return self._rect
 
-    def update_text(self, s: str):
+    def update_text(self, s: str) -> None:
         self._s = s
 
-    def update_text_color(self, color: str):
+    def update_text_color(self, color: str) -> None:
         self._txt_c = color
 
-    def update_bg(self, color: str):
+    def update_bg(self, color: str) -> None:
         self._bg_c = color
 
-    def render(self, screen: Surface, font: Font):
+    def render(self, screen: Surface, font: Font) -> None:
         self._render: Surface = font.render(self._s, True, self._txt_c, self._bg_c)
         screen.blit(self._render, self._rect)
 
@@ -346,16 +390,14 @@ class CapturedPiece:
 
     def render(self, screen: Surface):
         pygame.draw.rect(screen, 'chocolate1', self._collision_box)
-        screen.blit(self._image, (self._position.x, self._position.y))
+        screen.blit(self._image, tuple(self._position))
 
     # move both image and collision box using the relative position argument
-    def move_rel(self, rel_position: tuple[int, int]):
+    def move_rel(self, rel_position: tuple[int, int]) -> None:
         self._collision_box.move_ip(rel_position)
-        self._position = Position(
-            self._position.x + rel_position[0], self._position.y + rel_position[1]
-        )
+        self._position += rel_position
 
-    def reset_to_spot(self):
+    def reset_to_spot(self) -> None:
         self._collision_box.update(
             tuple(self._last_stable_position),
             (self._size, self._size),
@@ -364,6 +406,7 @@ class CapturedPiece:
 
 # --- MARK: Capture Box
 class CaptureBox:
+    MAX_PIECES: int = 4
     _width: int
     _height: int
     _position: Position
@@ -387,7 +430,7 @@ class CaptureBox:
         )
 
         self._capture_list = []
-        self._slice = (0, 4)  # the list shows at most 4 pieces
+        self._slice = (0, CaptureBox.MAX_PIECES)  # the list shows at most 4 pieces
         self._page = 1
 
         self._buttons = [

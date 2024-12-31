@@ -14,8 +14,8 @@ from project_types import (
     Location,
     BoardGamePiecePositions,
     GameState,
-    Feedback,
-    FeedbackInfo,
+    MoveFeedback,
+    MoveFeedbackInfo,
     GameMessageType,
     GameMessageDict,
 )
@@ -812,7 +812,11 @@ class BoardGameView:
         self._capture_box.render(self._screen, self._font)
 
     def _make_move(
-        self, old: Location, new: Location, player: Player, networking: CS150241ProjectNetworking | None
+        self,
+        old: Location,
+        new: Location,
+        player: Player,
+        networking: CS150241ProjectNetworking | None,
     ) -> None:
         for observer in self._make_move_observers:
             observer.on_make_move(old, new, self._player)
@@ -845,10 +849,10 @@ class BoardGameView:
             # todo: implement make new piece message
             networking.send(f'frame {self._frame_count} sent: make new piece')
 
-    def update_move(self, fb: Feedback) -> None:
+    def update_move(self, fb: MoveFeedback) -> None:
         active_piece: Piece = self._pieces[fb.move_src]
         match fb.info:
-            case FeedbackInfo.VALID:
+            case MoveFeedbackInfo.VALID:
                 if fb.move_dest is None:
                     raise RuntimeError('Error: Move destination was not found')
 
@@ -869,7 +873,7 @@ class BoardGameView:
             case _:
                 self._pieces[fb.move_src].reset_to_spot()
 
-    def update_new_piece(self, fb: Feedback) -> None:
+    def update_new_piece(self, fb: MoveFeedback) -> None:
         pass
 
     def on_state_change(self, state: GameState) -> None:

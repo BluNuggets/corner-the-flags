@@ -148,10 +148,10 @@ class BoardGamePiecePositions:
         }
 
 
-# --- MARK: FeedbackInfo / Feedback
+# --- MARK: MoveFeedbackInfo
 
 
-class FeedbackInfo(StrEnum):
+class MoveFeedbackInfo(StrEnum):
     NOT_CURRENT_PLAYER = 'Not current player'
     NO_PIECE_MOVED = 'No piece moved'
     SQUARE_OUT_OF_BOUNDS = 'Square out of bounds'
@@ -163,10 +163,10 @@ class FeedbackInfo(StrEnum):
 
 
 @dataclass(frozen=True)
-class Feedback:
+class MoveFeedback:
     move_src: Location
     move_dest: Location | None
-    info: FeedbackInfo
+    info: MoveFeedbackInfo
 
 
 # --- MARK: GameMessageDict

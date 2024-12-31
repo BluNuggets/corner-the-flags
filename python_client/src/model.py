@@ -11,8 +11,8 @@ from project_types import (
     Location,
     PiecePositions,
     BoardGamePiecePositions,
-    Feedback,
-    FeedbackInfo,
+    MoveFeedback,
+    MoveFeedbackInfo,
 )
 
 # --- MARK: Movement
@@ -414,10 +414,12 @@ class BoardGameModel:
             Player.PLAYER_2: [],
         }
 
-        self._state = replace(self._state, _player_to_move=Player.PLAYER_1, _turn=1, _move=1)
+        self._state = replace(
+            self._state, _player_to_move=Player.PLAYER_1, _turn=1, _move=1
+        )
 
     def next_move(self) -> None:
-        # update turn/move number     
+        # update turn/move number
         if self.move < self.max_moves:
             self._state = replace(
                 self._state,
@@ -433,30 +435,24 @@ class BoardGameModel:
             # change player to move
             match self.player_to_move:
                 case Player.PLAYER_1:
-                    self._state = replace(
-                        self._state,
-                        _player_to_move=Player.PLAYER_2
-                    )
+                    self._state = replace(self._state, _player_to_move=Player.PLAYER_2)
                 case Player.PLAYER_2:
-                    self._state = replace(
-                        self._state,
-                        _player_to_move=Player.PLAYER_1
-                    )
+                    self._state = replace(self._state, _player_to_move=Player.PLAYER_1)
 
     def get_move_feedback_info(
         self, src: Location, dest: Location, player: Player
-    ) -> FeedbackInfo:
+    ) -> MoveFeedbackInfo:
         # not currently player's turn to move
         if self._state.player_to_move != player:
-            return FeedbackInfo.NOT_CURRENT_PLAYER
+            return MoveFeedbackInfo.NOT_CURRENT_PLAYER
 
         # src Location does not exist in board
         if not self._board.is_square_within_bounds(src):
-            return FeedbackInfo.SQUARE_OUT_OF_BOUNDS
+            return MoveFeedbackInfo.SQUARE_OUT_OF_BOUNDS
 
         # dest Location does not exist in board
         if not self._board.is_square_within_bounds(dest):
-            return FeedbackInfo.SQUARE_OUT_OF_BOUNDS
+            return MoveFeedbackInfo.SQUARE_OUT_OF_BOUNDS
 
         # ---
 
@@ -464,41 +460,41 @@ class BoardGameModel:
 
         # no piece exists in src Location
         if src_piece is None:
-            return FeedbackInfo.NO_PIECE_MOVED
+            return MoveFeedbackInfo.NO_PIECE_MOVED
 
         # piece in src Location does not belong to the player
         # todo: uncomment if ready to test with 2 clients
         if src_piece.player != player:
-            return FeedbackInfo.PIECE_DOES_NOT_BELONG_TO_PLAYER
+            return MoveFeedbackInfo.PIECE_DOES_NOT_BELONG_TO_PLAYER
 
         # piece in src Location cannot reach dest Location
         if not src_piece.can_move(dest):
-            return FeedbackInfo.PIECE_CANNOT_REACH_SQUARE
+            return MoveFeedbackInfo.PIECE_CANNOT_REACH_SQUARE
 
         # ---
 
         # a piece can always move to an empty dest Location
         dest_piece: Piece | None = self._board.get_piece(dest)
         if dest_piece is None:
-            return FeedbackInfo.VALID
+            return MoveFeedbackInfo.VALID
 
         # a player cannot capture their own piece
         if src_piece.player == dest_piece.player:
-            return FeedbackInfo.CAPTURES_OWN_PIECE
+            return MoveFeedbackInfo.CAPTURES_OWN_PIECE
         # a player can capture an opponent piece if it is not a protected piece
         else:
             if dest_piece.is_protected:
-                return FeedbackInfo.CAPTURES_PROTECTED_PIECE
+                return MoveFeedbackInfo.CAPTURES_PROTECTED_PIECE
             else:
-                return FeedbackInfo.VALID
+                return MoveFeedbackInfo.VALID
 
     def is_move_valid(self, src: Location, dest: Location, player: Player) -> bool:
-        return self.get_move_feedback_info(src, dest, player) == FeedbackInfo.VALID
+        return self.get_move_feedback_info(src, dest, player) == MoveFeedbackInfo.VALID
 
     def _make_valid_move_feedback(
         self, src: Location, dest: Location, player: Player
-    ) -> Feedback:
-        return Feedback(
+    ) -> MoveFeedback:
+        return MoveFeedback(
             move_src=src,
             move_dest=dest,
             info=self.get_move_feedback_info(src, dest, player),
@@ -506,18 +502,18 @@ class BoardGameModel:
 
     def _make_invalid_move_feedback(
         self, src: Location, dest: Location, player: Player
-    ) -> Feedback:
-        return Feedback(
+    ) -> MoveFeedback:
+        return MoveFeedback(
             move_src=src,
             move_dest=None,
             info=self.get_move_feedback_info(src, dest, player),
         )
 
-    def move_piece(self, src: Location, dest: Location, player: Player) -> Feedback:
+    def move_piece(self, src: Location, dest: Location, player: Player) -> MoveFeedback:
         if not self.is_move_valid(src, dest, player):
             return self._make_invalid_move_feedback(src, dest, player)
         else:
-            ret: Feedback = self._make_valid_move_feedback(src, dest, player)
+            ret: MoveFeedback = self._make_valid_move_feedback(src, dest, player)
 
             # ---
 

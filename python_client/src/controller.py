@@ -11,8 +11,8 @@ from project_types import (
     MakeMoveGameMessageContentDict,
     Player,
     PieceKind,
-    Feedback,
-    FeedbackInfo,
+    MoveFeedback,
+    MoveFeedbackInfo,
     GameMessageType,
     GameMessageDict,
 )
@@ -48,17 +48,17 @@ class BoardGameController:
         view.run(self._networking)
 
     def on_make_move(self, old: Location, new: Location, player: Player) -> None:
-        feedback: Feedback = self._model.move_piece(old, new, player)
+        feedback: MoveFeedback = self._model.move_piece(old, new, player)
         self._on_state_change(self._model)
         print(
-            f"model says that the move is {"Valid" if feedback.info == FeedbackInfo.VALID else "Invalid"}"
+            f"model says that the move is {"Valid" if feedback.info == MoveFeedbackInfo.VALID else "Invalid"}"
         )
         self._view.update_move(feedback)
 
     def on_make_new_piece(self, piece_kind: PieceKind, dest: Location) -> None:
-        # feedback: Feedback = self._model.add_new_piece(piece_kind, dest)
+        # feedback: MoveFeedback = self._model.add_new_piece(piece_kind, dest)
         # self._on_state_change(self._model.state)
-        # print(f"model says that the move is {"Valid" if feedback.info == FeedbackInfo.VALID else "Invalid"}")
+        # print(f"model says that the move is {"Valid" if feedback.info == MoveFeedbackInfo.VALID else "Invalid"}")
         # self._view.update_new_piece(feedback)
         pass
 

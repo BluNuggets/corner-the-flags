@@ -2,7 +2,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Protocol
+from typing import Protocol, TypedDict
 
 # --- MARK: GameStatus
 
@@ -148,6 +148,9 @@ class BoardGamePiecePositions:
         }
 
 
+# --- MARK: FeedbackInfo / Feedback
+
+
 class FeedbackInfo(StrEnum):
     NOT_CURRENT_PLAYER = 'Not current player'
     NO_PIECE_MOVED = 'No piece moved'
@@ -164,3 +167,40 @@ class Feedback:
     move_src: Location
     move_dest: Location | None
     info: FeedbackInfo
+
+
+# --- MARK: GameMessageDict
+
+
+class GameMessageDict(TypedDict, total=True):
+    frame: int
+    message_type: GameMessageType
+    message_content: MakeMoveGameMessageContentDict
+
+
+# --- MARK: GameMessageType
+
+# type JSONType = None | int | str | bool | list[JSONType] | dict[str, JSONType]
+
+
+class GameMessageType(StrEnum):
+    MOVE = 'move'
+    INVALID = 'invalid'
+
+    @classmethod
+    def _missing_(cls, value: object) -> GameMessageType:
+        return GameMessageType.INVALID
+
+
+# --- MARK: GameMessageContentDict
+
+
+class LocationDict(TypedDict):
+    row: int
+    column: int
+
+
+class MakeMoveGameMessageContentDict(TypedDict):
+    src: LocationDict
+    dest: LocationDict
+    player: Player

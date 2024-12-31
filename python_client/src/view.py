@@ -1,3 +1,4 @@
+import json
 from math import ceil
 import os
 import pygame
@@ -6,17 +7,18 @@ import sys
 from typing import Any, Protocol
 from cs150241project_networking import CS150241ProjectNetworking, Message
 from project_types import (
+    MakeMoveGameMessageContentDict,
     Player,
     PieceKind,
     Location,
     BoardGamePiecePositions,
     GameState,
-    PieceData,
     Feedback,
     FeedbackInfo,
+    GameMessageType,
+    GameMessageDict,
 )
 # import random
-# from cs150241project_networking import CS150241ProjectNetworking
 
 # --- MARK: Constants
 REL_CAPTURED_BOX_WIDTH = 0.15
@@ -48,7 +50,7 @@ class Position:
 
 
 # --- MARK: Piece
-class Piece(PieceData):
+class Piece:
     _piece_kind: PieceKind
     _location: Location
     _position: Position
@@ -243,11 +245,14 @@ class Grid:
             )
         )
 
-    def get_cell_location(self, cell: Rect | None) -> Location | None:
+    def get_location_from_cell(self, cell: Rect | None) -> Location | None:
         if cell is None:
             return None
         else:
             return self.position_to_location(Position(cell.x, cell.y))
+
+    def get_cell_from_location(self, loc: Location) -> Rect:
+        return self._grid[loc.row - 1][loc.column - 1]
 
 
 # --- MARK: Button
@@ -547,8 +552,8 @@ class BoardGameView:
             self._width,
             self._height,
             # todo: not sure if rows or columns should've gone first
-            state.board.rows,
             state.board.columns,
+            state.board.rows,
             self._player,
         )
         self._setup_initial_positions()
@@ -685,7 +690,7 @@ class BoardGameView:
                                         event.pos
                                     )
                                     new_cell_location: Location | None = (
-                                        self._grid.get_cell_location(snap_cell)
+                                        self._grid.get_location_from_cell(snap_cell)
                                     )
 
                                     # todo: validate move through model
@@ -716,7 +721,7 @@ class BoardGameView:
                                         event.pos
                                     )
                                     new_cell_location: Location | None = (
-                                        self._grid.get_cell_location(snap_cell)
+                                        self._grid.get_location_from_cell(snap_cell)
                                     )
 
                                     # todo: validate move through model
@@ -779,7 +784,18 @@ class BoardGameView:
 
         if networking is not None:
             # todo: implement move piece message
-            networking.send(f'frame {self._frame_count} sent: move piece')
+            message_content: MakeMoveGameMessageContentDict = {
+                'src': {'row': old.row, 'column': old.column},
+                'dest': {'row': new.row, 'column': new.column},
+                'player': self._player,
+            }
+
+            data: GameMessageDict = {
+                'frame': self._frame_count,
+                'message_type': GameMessageType.MOVE,
+                'message_content': message_content,
+            }
+            networking.send(json.dumps(data))
 
     def _make_new_piece(
         self,
@@ -795,11 +811,15 @@ class BoardGameView:
             networking.send(f'frame {self._frame_count} sent: make new piece')
 
     def update_move(self, fb: Feedback):
-        active_piece = self._pieces[fb.move_src]
+        active_piece: Piece = self._pieces[fb.move_src]
         match fb.info:
             case FeedbackInfo.VALID:
-                if not fb.move_dest:
+                if fb.move_dest is None:
                     raise RuntimeError('Error: Move destination was not found')
+
+                self._active_cell_to_snap = self._grid.get_cell_from_location(
+                    fb.move_dest
+                )
 
                 # remove piece from prev location
                 self._pieces.pop(fb.move_src)
@@ -808,8 +828,8 @@ class BoardGameView:
                 self._pieces[fb.move_dest] = active_piece
 
                 # snap to location
-                if self._active_cell_to_snap is not None:
-                    self._pieces[fb.move_dest].snap(self._active_cell_to_snap)
+                # if self._active_cell_to_snap is not None:
+                self._pieces[fb.move_dest].snap(self._active_cell_to_snap)
 
             case _:
                 self._pieces[fb.move_src].reset_to_spot()

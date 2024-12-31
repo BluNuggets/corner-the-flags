@@ -472,7 +472,7 @@ class CaptureBox:
     def start_of_slice(self) -> int:
         return self._slice[0]
 
-    def render(self, screen: Surface, font: Font):
+    def render(self, screen: Surface, font: Font) -> None:
         pygame.draw.rect(screen, 'sandybrown', self._container)
 
         # render header
@@ -501,7 +501,7 @@ class CaptureBox:
         footer_rect.center = (self._position.x + (self._width // 2), self._height - 20)
         screen.blit(footer_render, footer_rect)
 
-    def add_captured_piece(self, pk: PieceKind, img_path: str):
+    def add_captured_piece(self, pk: PieceKind, img_path: str) -> None:
         self._capture_list.append(
             CapturedPiece(
                 pk,
@@ -519,10 +519,10 @@ class CaptureBox:
             )
         )
 
-    def move_piece(self, rel: tuple[int, int], index: int):
+    def move_piece(self, rel: tuple[int, int], index: int) -> None:
         self._capture_list[index].move_rel(rel)
 
-    def go_to_page(self, button_index: int):
+    def go_to_page(self, button_index: int) -> None:
         # previous page
         if button_index == 0:
             if self._slice[0] == 0:
@@ -583,7 +583,7 @@ class BoardGameView:
     _make_new_piece_observers: list[MakeNewPieceObserver]
     _receive_message_observers: list[ReceiveMessageObserver]
 
-    def __init__(self, state: GameState):
+    def __init__(self, state: GameState) -> None:
         pygame.init()
 
         self._width = SCREEN_WIDTH
@@ -619,7 +619,7 @@ class BoardGameView:
         self._active_cell_to_snap = None
 
     # todo: will have to fix this to follow OCP
-    def _setup_initial_positions(self):
+    def _setup_initial_positions(self) -> None:
         init_pos = BoardGamePiecePositions()
 
         for location, player_piece_kind in init_pos.get_positions().items():
@@ -642,13 +642,13 @@ class BoardGameView:
                 return os.path.join('src', 'assets', 'lui_bright.jpg')
 
     # register move observer (usually from controller)
-    def register_make_move_observer(self, observer: MakeMoveObserver):
+    def register_make_move_observer(self, observer: MakeMoveObserver) -> None:
         self._make_move_observers.append(observer)
 
-    def register_make_new_piece_observer(self, observer: MakeNewPieceObserver):
+    def register_make_new_piece_observer(self, observer: MakeNewPieceObserver) -> None:
         self._make_new_piece_observers.append(observer)
 
-    def register_receive_message_observer(self, observer: ReceiveMessageObserver):
+    def register_receive_message_observer(self, observer: ReceiveMessageObserver) -> None:
         self._receive_message_observers.append(observer)
 
     # --- MARK: Run PyGame
@@ -808,7 +808,7 @@ class BoardGameView:
             self._clock.tick(self._fps)
             self._frame_count += 1
 
-    def render_frame(self):
+    def render_frame(self) -> None:
         self._screen.fill('black')
 
         self._grid.render(self._screen)
@@ -820,7 +820,7 @@ class BoardGameView:
 
     def _make_move(
         self, old: Location, new: Location, networking: CS150241ProjectNetworking | None
-    ):
+    ) -> None:
         for observer in self._make_move_observers:
             observer.on_make_move(old, new, self._player)
 
@@ -844,7 +844,7 @@ class BoardGameView:
         piece_kind: PieceKind,
         dest: Location,
         networking: CS150241ProjectNetworking | None,
-    ):
+    ) -> None:
         for observer in self._make_new_piece_observers:
             observer.on_make_new_piece(piece_kind, dest)
 
@@ -852,7 +852,7 @@ class BoardGameView:
             # todo: implement make new piece message
             networking.send(f'frame {self._frame_count} sent: make new piece')
 
-    def update_move(self, fb: Feedback):
+    def update_move(self, fb: Feedback) -> None:
         active_piece: Piece = self._pieces[fb.move_src]
         match fb.info:
             case FeedbackInfo.VALID:
@@ -876,8 +876,8 @@ class BoardGameView:
             case _:
                 self._pieces[fb.move_src].reset_to_spot()
 
-    def update_new_piece(self, fb: Feedback):
+    def update_new_piece(self, fb: Feedback) -> None:
         pass
 
-    def on_state_change(self, state: GameState):
+    def on_state_change(self, state: GameState) -> None:
         self._player = state.player_to_move

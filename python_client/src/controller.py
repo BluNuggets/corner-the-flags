@@ -39,7 +39,7 @@ class BoardGameController:
         self._game_state_observers = []
 
     def start(self) -> None:
-        view = self._view
+        view: BoardGameView = self._view
         self._game_state_observers.append(view)
         view.register_make_move_observer(self)
         view.register_receive_message_observer(self)

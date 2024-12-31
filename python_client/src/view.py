@@ -5,7 +5,7 @@ import os
 import pygame
 from pygame import Rect, Surface, Clock, Font
 import sys
-from typing import Generator, Protocol
+from typing import Generator, NoReturn, Protocol
 from cs150241project_networking import CS150241ProjectNetworking, Message
 from project_types import (
     MakeMoveGameMessageContentDict,
@@ -652,7 +652,7 @@ class BoardGameView:
         self._receive_message_observers.append(observer)
 
     # --- MARK: Run PyGame
-    def run(self, networking: CS150241ProjectNetworking | None):
+    def run(self, networking: CS150241ProjectNetworking | None) -> NoReturn:
         active_piece_index: Location | None = None
         active_capture_piece_index: int | None = None
 

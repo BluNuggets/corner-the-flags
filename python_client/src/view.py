@@ -4,7 +4,7 @@ import os
 import pygame
 from pygame import Rect, Surface, Clock, Font
 import sys
-from typing import Any, Protocol
+from typing import Generator, Protocol
 from cs150241project_networking import CS150241ProjectNetworking, Message
 from project_types import (
     MakeMoveGameMessageContentDict,
@@ -33,19 +33,24 @@ class Position:
     _x: int
     _y: int
 
-    def __init__(self, x: int, y: int):
+    def __init__(self, x: int, y: int) -> None:
         self._x = x
         self._y = y
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'{self._x, self._y}'
 
+    def __iter__(self) -> Generator[int]:
+        yield self._x
+        yield self._y
+
+
     @property
-    def x(self):
+    def x(self) -> int:
         return self._x
 
     @property
-    def y(self):
+    def y(self) -> int:
         return self._y
 
 
@@ -116,7 +121,7 @@ class Piece:
         screen.blit(self._image, (self._position.x, self._position.y))
 
     # move both image and collision box using the relative position argument
-    def move_rel(self, rel_position: Any):
+    def move_rel(self, rel_position: tuple[int, int]):
         self._collision_box.move_ip(rel_position)
 
         # update self._position
@@ -125,9 +130,9 @@ class Piece:
             self._position.x + rel_position[0], self._position.y + rel_position[1]
         )
 
-    def move_abs(self, abs_position: Any):
+    def move_abs(self, abs_position: tuple[int, int]):
         self._collision_box.move_ip(abs_position)
-        self._position = abs_position
+        self._position = Position(abs_position[0], abs_position[1])
 
     def snap(self, cell_to_snap: Rect):
         self.collision_box.clamp_ip(cell_to_snap)
@@ -185,10 +190,14 @@ class Grid:
                         self._cell_length,
                     )
                 )
+                
             # append row to grid (dependent on Player ID)
-            self._grid.append(
-                temp_row
-            ) if self._player == Player.PLAYER_2 else self._grid.insert(0, temp_row)
+            match self._player:
+                case Player.PLAYER_1:
+                    self._grid.insert(0, temp_row)
+                case Player.PLAYER_2:
+                    #temp_row.reverse()
+                    self._grid.append(temp_row)
         return
 
     def center_align(self, num: int, dimension: int, length: int, is_x: bool) -> int:
@@ -216,43 +225,45 @@ class Grid:
                     pygame.draw.rect(screen, 'lightgreen', col)
 
     # event.pos is considered as Any type
-    def snap_position(self, cursor_position: Any) -> Rect | None:
+    def snap_position(self, cursor_position: tuple[int, int]) -> Rect | None:
         for row in self._grid:
             for cell in row:
                 if cell.collidepoint(cursor_position):
                     return cell
         return
 
-    # note: location is 1-indexed
-    def location_to_position(self, loc: Location) -> Position:
-        return Position(
-            self._grid[loc.row - 1][loc.column - 1].x,
-            self._grid[loc.row - 1][loc.column - 1].y,
-        )
-
-    def position_to_location(self, pos: Position) -> Location:
-        zero_zero_location = (self._grid[0][0].x, self._grid[0][0].y)
-        # return location based on player_id (due to a flipped board)
-        return (
-            Location(
-                ((pos.y - zero_zero_location[1]) // self._cell_length) + 1,
-                ((pos.x - zero_zero_location[0]) // self._cell_length) + 1,
-            )
-            if self._player == Player.PLAYER_2
-            else Location(
-                ((zero_zero_location[1] - pos.y) // self._cell_length) + 1,
-                ((pos.x - zero_zero_location[0]) // self._cell_length) + 1,
-            )
-        )
-
-    def get_location_from_cell(self, cell: Rect | None) -> Location | None:
-        if cell is None:
-            return None
-        else:
-            return self.position_to_location(Position(cell.x, cell.y))
+    # --- Grid conversions
 
     def get_cell_from_location(self, loc: Location) -> Rect:
         return self._grid[loc.row - 1][loc.column - 1]
+    
+    # note: location is 1-indexed
+    def get_location_from_position(self, pos: Position) -> Location:
+        zero_zero_location: Rect = self._grid[0][0]
+        # return location based on player_id (due to a flipped board)
+        return (
+            Location(
+                ((pos.y - zero_zero_location.y) // self._cell_length) + 1,
+                ((pos.x - zero_zero_location.x) // self._cell_length) + 1,
+            )
+            if self._player == Player.PLAYER_2
+            else Location(
+                ((zero_zero_location.y - pos.y) // self._cell_length) + 1,
+                ((pos.x - zero_zero_location.x) // self._cell_length) + 1,
+            )
+        )
+    
+    def get_position_from_cell(self, cell: Rect) -> Position:
+        return Position(cell.x, cell.y)
+    
+    def get_location_from_cell(self, cell: Rect) -> Location:
+        return self.get_location_from_position(self.get_position_from_cell(cell))
+    
+    def get_position_from_location(self, loc: Location) -> Position:
+        return self.get_position_from_cell(self.get_cell_from_location(loc))
+    
+    def get_cell_from_position(self, pos: Position) -> Rect:
+        return self.get_cell_from_location(self.get_location_from_position(pos))
 
 
 # --- MARK: Button
@@ -338,7 +349,7 @@ class CapturedPiece:
         screen.blit(self._image, (self._position.x, self._position.y))
 
     # move both image and collision box using the relative position argument
-    def move_rel(self, rel_position: Any):
+    def move_rel(self, rel_position: tuple[int, int]):
         self._collision_box.move_ip(rel_position)
         self._position = Position(
             self._position.x + rel_position[0], self._position.y + rel_position[1]
@@ -346,10 +357,9 @@ class CapturedPiece:
 
     def reset_to_spot(self):
         self._collision_box.update(
-            (self._last_stable_position.x, self._last_stable_position.y),
+            tuple(self._last_stable_position),
             (self._size, self._size),
         )
-        self._position = self._last_stable_position
 
 
 # --- MARK: Capture Box
@@ -466,7 +476,7 @@ class CaptureBox:
             )
         )
 
-    def move_piece(self, rel: Any, index: int):
+    def move_piece(self, rel: tuple[int, int], index: int):
         self._capture_list[index].move_rel(rel)
 
     def go_to_page(self, button_index: int):
@@ -574,7 +584,7 @@ class BoardGameView:
                 player_piece_kind[1],
                 location,
                 pygame.image.load(self._setup_image(player_piece_kind[1])),
-                self._grid.location_to_position(location),
+                self._grid.get_position_from_location(location),
                 self._grid.cell_length,
                 player_piece_kind[0],
             )
@@ -682,30 +692,26 @@ class BoardGameView:
                                 if active_piece_index is not None:
                                     piece: Piece = self._pieces[active_piece_index]
                                     old_cell_location: Location = (
-                                        self._grid.position_to_location(
+                                        self._grid.get_location_from_position(
                                             piece.last_stable_position
                                         )
                                     )
-                                    snap_cell: Rect | None = self._grid.snap_position(
-                                        event.pos
-                                    )
-                                    new_cell_location: Location | None = (
-                                        self._grid.get_location_from_cell(snap_cell)
-                                    )
+                                    snap_cell: Rect | None = self._grid.snap_position(event.pos)
+                                    
 
                                     # todo: validate move through model
-                                    if (
-                                        snap_cell is not None
-                                        and new_cell_location is not None
-                                    ):
+                                    if snap_cell is None:
+                                        piece.reset_to_spot()
+                                    else:
+                                        new_cell_location: Location = self._grid.get_location_from_cell(snap_cell)
+
                                         self._active_cell_to_snap = snap_cell
                                         self._make_move(
                                             old_cell_location,
                                             new_cell_location,
                                             networking,
                                         )
-                                    else:
-                                        piece.reset_to_spot()
+                                        
 
                                     # point active piece index to nothing
                                     self._active_cell_to_snap = None
@@ -717,27 +723,20 @@ class BoardGameView:
                                             active_capture_piece_index
                                         ]
                                     )
-                                    snap_cell: Rect | None = self._grid.snap_position(
-                                        event.pos
-                                    )
-                                    new_cell_location: Location | None = (
-                                        self._grid.get_location_from_cell(snap_cell)
-                                    )
+                                    snap_cell: Rect | None = self._grid.snap_position(event.pos)
 
                                     # todo: validate move through model
-                                    if (
-                                        snap_cell is not None
-                                        and new_cell_location is not None
-                                    ):
+                                    if snap_cell is None:
+                                        cap_piece.reset_to_spot()
+                                    else:
+                                        new_cell_location: Location = self._grid.get_location_from_cell(snap_cell)
                                         self._active_cell_to_snap = snap_cell
                                         self._make_new_piece(
                                             cap_piece.piece_kind,
                                             new_cell_location,
                                             networking,
                                         )
-                                    else:
-                                        cap_piece.reset_to_spot()
-
+                                        
                                     active_capture_piece_index = None
 
                             case _:

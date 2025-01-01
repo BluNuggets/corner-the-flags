@@ -387,8 +387,9 @@ class CaptureBox:
     _buttons: list[Button]
     _slice: tuple[int, int]
     _page: int
+    _player: Player
 
-    def __init__(self, font: Font) -> None:
+    def __init__(self, font: Font, player: Player) -> None:
         self._width = int(SCREEN_WIDTH * REL_CAPTURED_BOX_WIDTH)
         self._height = SCREEN_HEIGHT
 
@@ -404,6 +405,7 @@ class CaptureBox:
         self._capture_list = []
         self._slice = (0, CaptureBox.MAX_PIECES)  # the list shows at most 4 pieces
         self._page = 1
+        self._player = player
 
         self._buttons = [
             Button(
@@ -412,7 +414,7 @@ class CaptureBox:
                     self._position.x + (self._width // 2),
                     self._height - int(self._height * 0.15),
                 ),
-                'sandybrown',
+                'sandybrown' if player == Player.PLAYER_1 else 'deepskyblue1',
                 'black',
                 font,
             ),
@@ -422,7 +424,7 @@ class CaptureBox:
                     self._position.x + (self._width // 2),
                     self._height - int(self._height * 0.1),
                 ),
-                'sandybrown',
+                'sandybrown' if player == Player.PLAYER_1 else 'deepskyblue1',
                 'black',
                 font,
             ),
@@ -445,10 +447,15 @@ class CaptureBox:
         return self._slice[0]
 
     def render(self, screen: Surface, font: Font) -> None:
-        pygame.draw.rect(screen, 'sandybrown', self._container)
+        pygame.draw.rect(screen, 'sandybrown' if self._player == Player.PLAYER_1 else 'deepskyblue1', self._container)
 
         # render header
-        header_render: Surface = font.render('Captures', True, 'black', 'sandybrown')
+        header_render: Surface = font.render(
+            'Captures', 
+            True, 
+            'black', 
+            'sandybrown' if self._player == Player.PLAYER_1 else 'deepskyblue1',
+        )
         header_rect: Rect = header_render.get_rect()
         header_rect.center = (
             self._position.x + (self._width // 2),
@@ -472,7 +479,7 @@ class CaptureBox:
             f'Page {self._page} of {1 if len(self._capture_list) == 0 else ceil(len(self._capture_list) / 4)}',
             True,
             'black',
-            'sandybrown',
+            'sandybrown' if self._player == Player.PLAYER_1 else 'deepskyblue1',
         )
         footer_rect: Rect = footer_render.get_rect()
         footer_rect.center = (self._position.x + (self._width // 2), self._height - 20)
@@ -604,7 +611,7 @@ class BoardGameView:
         self._clock = pygame.time.Clock()
         self._frame_count = 0
         self._pieces = {}
-        self._capture_box = CaptureBox(self._font)
+        self._capture_box = CaptureBox(self._font, state.player)
 
         # todo: setup networking to confirm this works
         self._current_player = state.player_to_move
@@ -664,8 +671,6 @@ class BoardGameView:
         piece_to_check: Piece | None
 
         is_running: bool = True
-
-        self._capture_box.add_captured_piece(PieceKind.PAWN, os.path.join('src', 'assets', 'Empyrea_Prayge.png'))
 
         while is_running:
             if networking is not None:

@@ -45,6 +45,7 @@ class BoardGameController:
         self._game_state_observers.append(view)
         view.register_move_piece_observer(self)
         view.register_place_piece_observer(self)
+        view.register_receive_message_observer(self)
         print('temporary print - controller.start()')
 
         view.run(self._networking)

@@ -100,7 +100,7 @@ class Piece:
         self,
         piece_kind: PieceKind,
         location: Location,
-        image: Surface,
+        image: Sprite,
         position: Position,
         size: int,
         owned_by: Player,
@@ -110,7 +110,7 @@ class Piece:
         self._position = position
         self._last_stable_position = self._position
         self._size = size
-        self._image = pygame.transform.scale(image, (size, size))
+        self._image = pygame.transform.scale(image.get_sprite(), (size, size))
         self._collision_box = pygame.Rect(
             position.x,
             position.y,
@@ -546,6 +546,39 @@ class ReceiveMessageObserver(Protocol):
 class GameStateObserver(Protocol):
     def on_state_change(self, state: GameState): ...
 
+# --- MARK: Sprite
+class Sprite(Protocol):
+    def get_sprite(self) -> Surface: ...
+
+class PawnSprite(Sprite):
+    def get_sprite(self) -> Surface:
+        return pygame.image.load(os.path.join('src', 'assets', 'lui_sword.jpg'))
+    
+class LanceSprite(Sprite):
+    def get_sprite(self) -> Surface:
+        return pygame.image.load(os.path.join('src', 'assets', 'lui_bright.jpg'))
+
+class KingSprite(Sprite):
+    def get_sprite(self) -> Surface:
+        return pygame.image.load(os.path.join('src', 'assets', 'lui_wink_ed.jpg'))
+
+# --- MARK: PieceFactory
+class PieceFactory(Protocol):
+    @classmethod
+    def make(
+        cls, pk: PieceKind, location: Location, position: Position, size: int, player: Player
+    ) -> Piece: ...
+
+class BoardPieceFactory(PieceFactory):
+    @classmethod
+    def make(cls, pk: PieceKind, location: Location, position: Position, size: int, player: Player) -> Piece:
+        match pk:
+            case PieceKind.PAWN:
+                return Piece(pk, location, PawnSprite(), position, size, player)
+            case PieceKind.KING:
+                return Piece(pk, location, KingSprite(), position, size, player)
+            case PieceKind.LANCE:
+                return Piece(pk, location, LanceSprite(), position, size, player)
 
 # --- MARK: BoardGameView
 class BoardGameView:
@@ -607,25 +640,16 @@ class BoardGameView:
     # todo: will have to fix this to follow OCP
     def _setup_initial_positions(self) -> None:
         init_pos = BoardGamePiecePositions()
+        piece_factory = BoardPieceFactory()
 
         for location, player_piece_kind in init_pos.get_positions().items():
-            self._pieces[location] = Piece(
+            self._pieces[location] = piece_factory.make(
                 player_piece_kind[1],
                 location,
-                pygame.image.load(self._setup_image(player_piece_kind[1])),
                 self._grid.get_position_from_location(location),
                 self._grid.cell_length,
                 player_piece_kind[0],
             )
-
-    def _setup_image(self, pk: PieceKind) -> str:
-        match pk:
-            case PieceKind.PAWN:
-                return os.path.join('src', 'assets', 'lui_sword.jpg')
-            case PieceKind.KING:
-                return os.path.join('src', 'assets', 'lui_wink_ed.jpg')
-            case PieceKind.LANCE:
-                return os.path.join('src', 'assets', 'lui_bright.jpg')
 
     # register move observer (usually from controller)
     def register_move_piece_observer(self, observer: MovePieceObserver) -> None:

@@ -12,6 +12,8 @@ from project_types import (
     PieceKind,
     MoveFeedback,
     MoveFeedbackInfo,
+    PlaceFeedback,
+    PlaceFeedbackInfo,
     GameMessageType,
     GameMessageDict,
     GameMessageContentDict,
@@ -55,12 +57,15 @@ class BoardGameController:
         )
         self._view.update_move(feedback)
 
-    def on_make_new_piece(self, piece_kind: PieceKind, dest: Location) -> None:
-        # feedback: MoveFeedback = self._model.add_new_piece(piece_kind, dest)
-        # self._on_state_change(self._model.state)
-        # print(f"model says that the move is {"Valid" if feedback.info == MoveFeedbackInfo.VALID else "Invalid"}")
-        # self._view.update_new_piece(feedback)
-        pass
+    def on_make_new_piece(
+        self, piece_kind: PieceKind, dest: Location, player: Player
+    ) -> None:
+        feedback: PlaceFeedback = self._model.place_piece(piece_kind, dest, player)
+        self._on_state_change(self._model)
+        print(
+            f"model says that the place is {"Valid" if feedback.info == PlaceFeedbackInfo.VALID else "Invalid"}"
+        )
+        self._view.update_place(feedback)
 
     def on_receive_message(self, message: Message) -> None:
         if self._networking is not None:
@@ -70,8 +75,7 @@ class BoardGameController:
 
                 message_type: GameMessageType = game_message.message_type
                 message_content: GameMessageContent = game_message.message_content
-                print(message_type)
-                print(message_content)
+
                 # todo: figure out how to apply OCP (subtype polymorphism) for converting strings to Python objects
                 match GameMessageType(message_type):
                     case GameMessageType.MOVE:
@@ -100,7 +104,9 @@ class BoardGameController:
                             return
 
                         self.on_make_new_piece(
-                            message_content.place_piece_kind, message_content.place_dest
+                            message_content.place_piece_kind,
+                            message_content.place_dest,
+                            message_content.player,
                         )
                     case GameMessageType.INVALID:
                         pass
@@ -197,8 +203,11 @@ class GameMessageFactory:
         except Exception:
             raise RuntimeError('Error: Unhandled exception in parsing JSON string.')
 
+        # extract keys from GameMessage
+        # note: has a chance for uncaught errors if data doesn't throw an exception but is not of type GameMessageDict
         frame: int = data['frame']
         message_type: GameMessageType = data['message_type']
+        message_content: GameMessageContentDict = data['message_content']
 
         # make message content based on message type
         match message_type:
@@ -208,5 +217,7 @@ class GameMessageFactory:
                 )
             case _:
                 return GameMessage(
-                    frame, message_type, GameMessageContent(data['message_content'])
+                    frame,
+                    message_type,
+                    GameMessageContent(message_content),
                 )

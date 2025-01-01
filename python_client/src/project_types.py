@@ -1,5 +1,5 @@
 from __future__ import annotations
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol, TypedDict
@@ -29,7 +29,7 @@ class GameState(Protocol):
     def board(self) -> BoardData: ...
 
     @property
-    def captured_pieces(self) -> Mapping[Player, Sequence[PieceKind]]: ...
+    def captured_pieces(self) -> Mapping[Player, Mapping[PieceKind, int]]: ...
 
     @property
     def player_to_move(self) -> Player: ...
@@ -153,8 +153,8 @@ class BoardGamePiecePositions:
 
 class MoveFeedbackInfo(StrEnum):
     NOT_CURRENT_PLAYER = 'Not current player'
-    NO_PIECE_MOVED = 'No piece moved'
     SQUARE_OUT_OF_BOUNDS = 'Square out of bounds'
+    NO_PIECE_MOVED = 'No piece moved'
     PIECE_DOES_NOT_BELONG_TO_PLAYER = 'Piece does not belong to player'
     PIECE_CANNOT_REACH_SQUARE = 'Piece cannot reach square'
     CAPTURES_OWN_PIECE = 'Captures own piece'
@@ -174,12 +174,10 @@ class MoveFeedback:
 
 class PlaceFeedbackInfo(StrEnum):
     NOT_CURRENT_PLAYER = 'Not current player'
-    NO_PIECE_MOVED = 'No piece moved'
     SQUARE_OUT_OF_BOUNDS = 'Square out of bounds'
-    PIECE_DOES_NOT_BELONG_TO_PLAYER = 'Piece does not belong to player'
-    PIECE_CANNOT_REACH_SQUARE = 'Piece cannot reach square'
-    CAPTURES_OWN_PIECE = 'Captures own piece'
-    CAPTURES_PROTECTED_PIECE = 'Captures protected piece'
+    NO_PLAYER_PLAYED = 'No player played'
+    NO_PIECE_PLACED = 'No piece placed'
+    CAPTURES_PIECE = 'Captures a piece'
     VALID = 'Valid'
 
 

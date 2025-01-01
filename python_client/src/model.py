@@ -13,6 +13,8 @@ from project_types import (
     BoardGamePiecePositions,
     MoveFeedback,
     MoveFeedbackInfo,
+    PlaceFeedback,
+    PlaceFeedbackInfo,
 )
 
 # --- MARK: Movement
@@ -312,7 +314,7 @@ class BoardGameModel:
     _player: Player
     # state
     _board: Board
-    _captured_pieces: dict[Player, list[PieceKind]]
+    _captured_pieces: dict[Player, dict[PieceKind, int]]
     _state: BoardGameFrozenGameState
     # non-state extras
     _board_setter: BoardSetter
@@ -321,9 +323,9 @@ class BoardGameModel:
     def setup_game(cls, player_id: PlayerId) -> BoardGameModel:
         MAX_MOVES: int = 3
         board: Board = Board(8, 8)
-        captured_pieces: dict[Player, list[PieceKind]] = {
-            Player.PLAYER_1: [],
-            Player.PLAYER_2: [],
+        captured_pieces: dict[Player, dict[PieceKind, int]] = {
+            Player.PLAYER_1: {},
+            Player.PLAYER_2: {},
         }
         state: BoardGameFrozenGameState = BoardGameFrozenGameState(
             _max_moves=MAX_MOVES, _player_to_move=Player.PLAYER_1, _turn=1, _move=1
@@ -342,7 +344,7 @@ class BoardGameModel:
         self,
         player_id: PlayerId,
         board: Board,
-        captured_pieces: dict[Player, list[PieceKind]],
+        captured_pieces: dict[Player, dict[PieceKind, int]],
         state: BoardGameFrozenGameState,
         piece_positions: PiecePositions,
         piece_factory: PieceFactory,
@@ -374,7 +376,7 @@ class BoardGameModel:
         return self._board
 
     @property
-    def captured_pieces(self) -> dict[Player, list[PieceKind]]:
+    def captured_pieces(self) -> dict[Player, dict[PieceKind, int]]:
         return self._captured_pieces
 
     @property
@@ -410,8 +412,8 @@ class BoardGameModel:
     def new_game(self) -> None:
         self._board_setter.setup_board(self._board)
         self._captured_pieces = {
-            Player.PLAYER_1: [],
-            Player.PLAYER_2: [],
+            Player.PLAYER_1: {},
+            Player.PLAYER_2: {},
         }
 
         self._state = replace(
@@ -463,7 +465,6 @@ class BoardGameModel:
             return MoveFeedbackInfo.NO_PIECE_MOVED
 
         # piece in src Location does not belong to the player
-        # todo: uncomment if ready to test with 2 clients
         if src_piece.player != player:
             return MoveFeedbackInfo.PIECE_DOES_NOT_BELONG_TO_PLAYER
 
@@ -473,8 +474,9 @@ class BoardGameModel:
 
         # ---
 
-        # a piece can always move to an empty dest Location
         dest_piece: Piece | None = self._board.get_piece(dest)
+
+        # a piece can always move to an empty dest Location
         if dest_piece is None:
             return MoveFeedbackInfo.VALID
 
@@ -532,8 +534,15 @@ class BoardGameModel:
                     case Player.PLAYER_2:
                         receiving_player: Player = Player.PLAYER_1
 
-                self._captured_pieces[receiving_player].append(dest_piece.piece_kind)
+                # add piece to captured pieces
+                self._captured_pieces[receiving_player][dest_piece.piece_kind] = (
+                    self._captured_pieces[receiving_player].setdefault(
+                        dest_piece.piece_kind, 0
+                    )
+                    + 1
+                )
 
+                # remove captured piece from board
                 self._board.remove_piece(dest)
 
             # ---
@@ -550,5 +559,83 @@ class BoardGameModel:
             # ---
 
             self.next_move()
+
+            return ret
+
+    def get_place_feedback_info(
+        self, piece_kind: PieceKind, dest: Location, player: Player
+    ) -> PlaceFeedbackInfo:
+        # not currently player's turn to move
+        if self._state.player_to_move != player:
+            return PlaceFeedbackInfo.NOT_CURRENT_PLAYER
+
+        # dest Location does not exist in board
+        if not self._board.is_square_within_bounds(dest):
+            return PlaceFeedbackInfo.SQUARE_OUT_OF_BOUNDS
+
+        # ---
+
+        # player not in captured pieces dict (this should never happen)
+        if player not in self._captured_pieces:
+            return PlaceFeedbackInfo.NO_PLAYER_PLAYED
+
+        # no piece exists in src Location
+        if self._captured_pieces[player].get(piece_kind, 0) == 0:
+            return PlaceFeedbackInfo.NO_PIECE_PLACED
+
+        # ---
+
+        dest_piece: Piece | None = self._board.get_piece(dest)
+        # a piece can always be placed on an empty dest Location
+        if dest_piece is None:
+            return PlaceFeedbackInfo.VALID
+        # a piece cannot be placed on an occupied dest Location
+        else:
+            return PlaceFeedbackInfo.CAPTURES_PIECE
+
+    def is_place_valid(
+        self, piece_kind: PieceKind, dest: Location, player: Player
+    ) -> bool:
+        return (
+            self.get_place_feedback_info(piece_kind, dest, player)
+            == PlaceFeedbackInfo.VALID
+        )
+
+    def _make_valid_place_feedback(
+        self, piece_kind: PieceKind, dest: Location, player: Player
+    ) -> PlaceFeedback:
+        return PlaceFeedback(
+            place_piece_kind=piece_kind,
+            place_dest=dest,
+            info=self.get_place_feedback_info(piece_kind, dest, player),
+        )
+
+    def _make_invalid_place_feedback(
+        self, piece_kind: PieceKind, dest: Location, player: Player
+    ) -> PlaceFeedback:
+        return PlaceFeedback(
+            place_piece_kind=piece_kind,
+            place_dest=dest,
+            info=self.get_place_feedback_info(piece_kind, dest, player),
+        )
+
+    def place_piece(
+        self, piece_kind: PieceKind, dest: Location, player: Player
+    ) -> PlaceFeedback:
+        if not self.is_place_valid(piece_kind, dest, player):
+            return self._make_invalid_place_feedback(piece_kind, dest, player)
+        else:
+            ret: PlaceFeedback = self._make_valid_place_feedback(
+                piece_kind, dest, player
+            )
+
+            # make new piece
+            new_piece: Piece = BoardGamePieceFactory.make(player, piece_kind, dest)
+
+            # remove piece from captured pieces
+            self._captured_pieces[player][piece_kind] -= 1
+
+            # add piece to board
+            self._board.add_piece(new_piece)
 
             return ret

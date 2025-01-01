@@ -69,23 +69,49 @@ class Location:
     _row: int
     _column: int
 
+    def __add__(self, other: Location | tuple[int, int]) -> Location:
+        """Add value to a `Location()` instance. Value can be another `Location()` or a `tuple[int, int].`"""
+        if isinstance(other, Location):
+            return Location(self._row + other.row, self._column + other.column)
+        elif type(other) is tuple[int, int]:
+            return Location(self._row + other[0], self._column + other[1])
+        else:
+            raise TypeError('Error: Invalid type for __add__ with Location().')
+
     def __copy__(self) -> Location:
+        """Return a new `Location()` instance with the same values."""
         return Location(self._row, self._column)
 
     def __hash__(self) -> int:
-        """Hash a Location() instance by hashing a tuple[int,int] that contains the values of .row and .column"""
+        """Hash a `Location()` instance by hashing a `tuple[int, int]` that contains the values of `.row` and `.column`."""
         return hash((self._row, self._column))
 
-    def __sub__(self, other: Location) -> Location:
-        """Get the difference of two Location() instances"""
-        return Location(self._row - other.row, self._column - other.column)
+    def __rsub__(self, other: Location | tuple[int, int]) -> Location:
+        """Subtract value from a `Location()` instance. Value can be another `Location()` or a `tuple[int, int].`"""
+        if isinstance(other, Location):
+            return Location(other._row - self.row, other._column - self.column)
+        elif type(other) is tuple[int, int]:
+            return Location(other[0] - self._row, other[1] - self._column)
+        else:
+            raise TypeError('Error: Invalid type for __rsub__ with Location().')
+
+    def __sub__(self, other: Location | tuple[int, int]) -> Location:
+        """Decrease value by a `Location()` instance. Value can be another `Location()` or a `tuple[int, int].`"""
+        if isinstance(other, Location):
+            return Location(self._row - other.row, self._column - other.column)
+        elif type(other) is tuple[int, int]:
+            return Location(self._row - other[0], self._column - other[1])
+        else:
+            raise TypeError('Error: Invalid type for __sub__ with Location().')
 
     @property
     def row(self) -> int:
+        """Returns the row number of a `Location()` instance (1-indexed)."""
         return self._row
 
     @property
     def column(self) -> int:
+        """Returns the column number of a `Location()` instance (1-indexed)."""
         return self._column
 
 

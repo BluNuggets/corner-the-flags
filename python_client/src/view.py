@@ -530,12 +530,12 @@ class CaptureBox:
 
 
 # --- MARK: Observers
-class MakeMoveObserver(Protocol):
-    def on_make_move(self, old: Location, new: Location, player: Player): ...
+class MovePieceObserver(Protocol):
+    def on_move_piece(self, old: Location, new: Location, player: Player): ...
 
 
-class MakeNewPieceObserver(Protocol):
-    def on_make_new_piece(self, piece_kind: PieceKind, dest: Location): ...
+class PlacePieceObserver(Protocol):
+    def on_place_piece(self, piece_kind: PieceKind, dest: Location, player: Player): ...
 
 
 class ReceiveMessageObserver(Protocol):
@@ -565,8 +565,8 @@ class BoardGameView:
     _active_cell_to_snap: Rect | None
 
     # observers
-    _make_move_observers: list[MakeMoveObserver]
-    _make_new_piece_observers: list[MakeNewPieceObserver]
+    _move_piece_observers: list[MovePieceObserver]
+    _place_piece_observers: list[PlacePieceObserver]
     _receive_message_observers: list[ReceiveMessageObserver]
 
     def __init__(self, state: GameState) -> None:
@@ -598,8 +598,8 @@ class BoardGameView:
         self._setup_initial_positions()
 
         # create observers for controller
-        self._make_move_observers = []
-        self._make_new_piece_observers = []
+        self._move_piece_observers = []
+        self._place_piece_observers = []
         self._receive_message_observers = []
 
         self._active_cell_to_snap = None
@@ -628,11 +628,11 @@ class BoardGameView:
                 return os.path.join('src', 'assets', 'lui_bright.jpg')
 
     # register move observer (usually from controller)
-    def register_make_move_observer(self, observer: MakeMoveObserver) -> None:
-        self._make_move_observers.append(observer)
+    def register_move_piece_observer(self, observer: MovePieceObserver) -> None:
+        self._move_piece_observers.append(observer)
 
-    def register_make_new_piece_observer(self, observer: MakeNewPieceObserver) -> None:
-        self._make_new_piece_observers.append(observer)
+    def register_place_piece_observer(self, observer: PlacePieceObserver) -> None:
+        self._place_piece_observers.append(observer)
 
     def register_receive_message_observer(
         self, observer: ReceiveMessageObserver
@@ -740,7 +740,7 @@ class BoardGameView:
                                         )
 
                                         self._active_cell_to_snap = snap_cell
-                                        self._make_move(
+                                        self._move_piece(
                                             old_cell_location,
                                             new_cell_location,
                                             self._player,
@@ -769,9 +769,10 @@ class BoardGameView:
                                             self._grid.get_location_from_cell(snap_cell)
                                         )
                                         self._active_cell_to_snap = snap_cell
-                                        self._make_new_piece(
+                                        self._place_piece(
                                             cap_piece.piece_kind,
                                             new_cell_location,
+                                            self._player,
                                             networking,
                                         )
 
@@ -813,15 +814,15 @@ class BoardGameView:
 
         self._capture_box.render(self._screen, self._font)
 
-    def _make_move(
+    def _move_piece(
         self,
         old: Location,
         new: Location,
         player: Player,
         networking: CS150241ProjectNetworking | None,
     ) -> None:
-        for observer in self._make_move_observers:
-            observer.on_make_move(old, new, self._player)
+        for observer in self._move_piece_observers:
+            observer.on_move_piece(old, new, self._player)
 
         if networking is not None:
             # todo: implement move piece message
@@ -838,14 +839,15 @@ class BoardGameView:
             }
             networking.send(json.dumps(data))
 
-    def _make_new_piece(
+    def _place_piece(
         self,
         piece_kind: PieceKind,
         dest: Location,
+        player: Player,
         networking: CS150241ProjectNetworking | None,
     ) -> None:
-        for observer in self._make_new_piece_observers:
-            observer.on_make_new_piece(piece_kind, dest)
+        for observer in self._place_piece_observers:
+            observer.on_place_piece(piece_kind, dest, player)
 
         if networking is not None:
             # todo: implement make new piece message

@@ -43,13 +43,13 @@ class BoardGameController:
     def start(self) -> None:
         view: BoardGameView = self._view
         self._game_state_observers.append(view)
-        view.register_make_move_observer(self)
-        view.register_receive_message_observer(self)
+        view.register_move_piece_observer(self)
+        view.register_place_piece_observer(self)
         print('temporary print - controller.start()')
 
         view.run(self._networking)
 
-    def on_make_move(self, old: Location, new: Location, player: Player) -> None:
+    def on_move_piece(self, old: Location, new: Location, player: Player) -> None:
         feedback: MoveFeedback = self._model.move_piece(old, new, player)
         self._on_state_change(self._model)
         print(
@@ -57,7 +57,7 @@ class BoardGameController:
         )
         self._view.update_move(feedback)
 
-    def on_make_new_piece(
+    def on_place_piece(
         self, piece_kind: PieceKind, dest: Location, player: Player
     ) -> None:
         feedback: PlaceFeedback = self._model.place_piece(piece_kind, dest, player)
@@ -88,7 +88,7 @@ class BoardGameController:
                         if message_content.player is None:
                             return
 
-                        self.on_make_move(
+                        self.on_move_piece(
                             message_content.move_src,
                             message_content.move_dest,
                             message_content.player,
@@ -103,7 +103,7 @@ class BoardGameController:
                         if message_content.player is None:
                             return
 
-                        self.on_make_new_piece(
+                        self.on_place_piece(
                             message_content.place_piece_kind,
                             message_content.place_dest,
                             message_content.player,

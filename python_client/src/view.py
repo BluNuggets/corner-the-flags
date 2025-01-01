@@ -8,6 +8,7 @@ import sys
 from typing import Generator, NoReturn, Protocol
 from cs150241project_networking import CS150241ProjectNetworking, Message
 from project_types import (
+    PlacePieceGameMessageContentDict,
     Player,
     PieceKind,
     Location,
@@ -590,7 +591,6 @@ class BoardGameView:
         self._grid = Grid(
             self._width,
             self._height,
-            # todo: not sure if rows or columns should've gone first
             state.board.columns,
             state.board.rows,
             self._player,
@@ -825,7 +825,6 @@ class BoardGameView:
             observer.on_move_piece(old, new, self._player)
 
         if networking is not None:
-            # todo: implement move piece message
             message_content: MakeMoveGameMessageContentDict = {
                 'player': player,
                 'move_src': {'row': old.row, 'column': old.column},
@@ -850,8 +849,18 @@ class BoardGameView:
             observer.on_place_piece(piece_kind, dest, player)
 
         if networking is not None:
-            # todo: implement make new piece message
-            networking.send(f'frame {self._frame_count} sent: make new piece')
+            message_content: PlacePieceGameMessageContentDict = {
+                'player': player,
+                'place_piece_kind': piece_kind,
+                'place_dest': {'row': dest.row, 'column': dest.column}
+            }
+
+            data: GameMessageDict = {
+                'frame': self._frame_count,
+                'message_type': GameMessageType.MOVE,
+                'message_content': message_content,
+            }
+            networking.send(json.dumps(data))
 
     def update_move(self, fb: MoveFeedback) -> None:
         active_piece: Piece = self._pieces[fb.move_src]

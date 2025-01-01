@@ -169,22 +169,42 @@ class MoveFeedback:
     info: MoveFeedbackInfo
 
 
+# --- MARK: PlaceFeedbackInfo
+
+
+class PlaceFeedbackInfo(StrEnum):
+    NOT_CURRENT_PLAYER = 'Not current player'
+    NO_PIECE_MOVED = 'No piece moved'
+    SQUARE_OUT_OF_BOUNDS = 'Square out of bounds'
+    PIECE_DOES_NOT_BELONG_TO_PLAYER = 'Piece does not belong to player'
+    PIECE_CANNOT_REACH_SQUARE = 'Piece cannot reach square'
+    CAPTURES_OWN_PIECE = 'Captures own piece'
+    CAPTURES_PROTECTED_PIECE = 'Captures protected piece'
+    VALID = 'Valid'
+
+
+@dataclass(frozen=True)
+class PlaceFeedback:
+    place_piece_kind: PieceKind
+    place_dest: Location | None
+    info: PlaceFeedbackInfo
+
+
 # --- MARK: GameMessageDict
 
 
 class GameMessageDict(TypedDict, total=True):
     frame: int
     message_type: GameMessageType
-    message_content: MakeMoveGameMessageContentDict
+    message_content: GameMessageContentDict
 
 
 # --- MARK: GameMessageType
 
-# type JSONType = None | int | str | bool | list[JSONType] | dict[str, JSONType]
-
 
 class GameMessageType(StrEnum):
     MOVE = 'move'
+    PLACE = 'place'
     INVALID = 'invalid'
 
     @classmethod
@@ -200,7 +220,21 @@ class LocationDict(TypedDict):
     column: int
 
 
-class MakeMoveGameMessageContentDict(TypedDict):
-    src: LocationDict
-    dest: LocationDict
+class GameMessageContentDict(TypedDict, total=False):
     player: Player
+    move_src: LocationDict
+    move_dest: LocationDict
+    place_piece_kind: PieceKind
+    place_dest: LocationDict
+
+
+class MakeMoveGameMessageContentDict(GameMessageContentDict, total=False):
+    player: Player
+    move_src: LocationDict
+    move_dest: LocationDict
+
+
+class PlacePieceGameMessageContentDict(GameMessageContentDict, total=False):
+    player: Player
+    place_piece_kind: PieceKind
+    place_dest: LocationDict

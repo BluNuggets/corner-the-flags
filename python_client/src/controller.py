@@ -8,13 +8,13 @@ from project_types import (
     Location,
     GameState,
     LocationDict,
-    MakeMoveGameMessageContentDict,
     Player,
     PieceKind,
     MoveFeedback,
     MoveFeedbackInfo,
     GameMessageType,
     GameMessageDict,
+    GameMessageContentDict,
 )
 
 # --- MARK: BoardGameControler
@@ -89,6 +89,19 @@ class BoardGameController:
                             message_content.move_dest,
                             message_content.player,
                         )
+                    case GameMessageType.PLACE:
+                        if message_content.place_piece_kind is None:
+                            return
+
+                        if message_content.place_dest is None:
+                            return
+
+                        if message_content.player is None:
+                            return
+
+                        self.on_make_new_piece(
+                            message_content.place_piece_kind, message_content.place_dest
+                        )
                     case GameMessageType.INVALID:
                         pass
 
@@ -102,25 +115,40 @@ class BoardGameController:
 
 @dataclass(frozen=True)
 class GameMessageContent:
-    _move_src: Location | None = field(default=None)
-    _move_dest: Location | None = field(default=None)
-    _player: Player | None = field(default=None)
+    _dict: GameMessageContentDict = field(default_factory=lambda: {})
 
     @classmethod
     def default_invalid(cls) -> GameMessageContent:
         return cls()
 
     @property
+    def player(self) -> Player | None:
+        return self._dict.get('player', None)
+
+    @property
     def move_src(self) -> Location | None:
-        return self._move_src
+        value: LocationDict | None = self._dict.get('move_src', None)
+
+        if value:
+            return Location(value['row'], value['column'])
 
     @property
     def move_dest(self) -> Location | None:
-        return self._move_dest
+        value: LocationDict | None = self._dict.get('move_dest', None)
+
+        if value:
+            return Location(value['row'], value['column'])
 
     @property
-    def player(self) -> Player | None:
-        return self._player
+    def place_piece_kind(self) -> PieceKind | None:
+        return self._dict.get('place_piece_kind', None)
+
+    @property
+    def place_dest(self) -> Location | None:
+        value: LocationDict | None = self._dict.get('place_dest', None)
+
+        if value:
+            return Location(value['row'], value['column'])
 
 
 class GameMessage:
@@ -174,30 +202,11 @@ class GameMessageFactory:
 
         # make message content based on message type
         match message_type:
-            case GameMessageType.MOVE:
-                # todo: check if type hint actually holds
-                message_content: MakeMoveGameMessageContentDict = data[
-                    'message_content'
-                ]
-                """
-                if type(message_content) != MakeMoveGameMessageContentDict:
-                    raise RuntimeError(f'Error: GameMessage of type {message_type} has invalid message content.')
-                """
-
-                src: LocationDict = message_content['src']
-                dest: LocationDict = message_content['dest']
-                player: Player = message_content['player']
-
-                return GameMessage(
-                    frame,
-                    message_type,
-                    GameMessageContent(
-                        _move_src=Location(src['row'], src['column']),
-                        _move_dest=Location(dest['row'], dest['column']),
-                        _player=player,
-                    ),
-                )
             case GameMessageType.INVALID:
                 raise RuntimeError(
                     'Error: Value of message_type does not correspond to a valid message type.'
+                )
+            case _:
+                return GameMessage(
+                    frame, message_type, GameMessageContent(data['message_content'])
                 )

@@ -824,9 +824,9 @@ class BoardGameView:
         if networking is not None:
             # todo: implement move piece message
             message_content: MakeMoveGameMessageContentDict = {
-                'src': {'row': old.row, 'column': old.column},
-                'dest': {'row': new.row, 'column': new.column},
                 'player': player,
+                'move_src': {'row': old.row, 'column': old.column},
+                'move_dest': {'row': new.row, 'column': new.column},
             }
 
             data: GameMessageDict = {

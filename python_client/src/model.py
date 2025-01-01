@@ -487,6 +487,8 @@ class BoardGameModel:
         else:
             if dest_piece.is_protected:
                 return MoveFeedbackInfo.CAPTURES_PROTECTED_PIECE
+            elif not src_piece.can_capture:
+                return MoveFeedbackInfo.PIECE_CANNOT_CAPTURE
             else:
                 return MoveFeedbackInfo.VALID
 

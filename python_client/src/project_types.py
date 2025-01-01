@@ -159,6 +159,7 @@ class MoveFeedbackInfo(StrEnum):
     PIECE_CANNOT_REACH_SQUARE = 'Piece cannot reach square'
     CAPTURES_OWN_PIECE = 'Captures own piece'
     CAPTURES_PROTECTED_PIECE = 'Captures protected piece'
+    PIECE_CANNOT_CAPTURE = 'Piece cannot capture'
     VALID = 'Valid'
 
 

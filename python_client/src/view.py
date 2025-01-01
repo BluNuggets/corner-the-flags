@@ -852,7 +852,7 @@ class BoardGameView:
             message_content: PlacePieceGameMessageContentDict = {
                 'player': player,
                 'place_piece_kind': piece_kind,
-                'place_dest': {'row': dest.row, 'column': dest.column}
+                'place_dest': {'row': dest.row, 'column': dest.column},
             }
 
             data: GameMessageDict = {

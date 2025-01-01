@@ -436,7 +436,9 @@ class BoardGameModel:
 
         for piece in self.protected_pieces[player]:
             for dest in piece.destinations:
-                if self.is_move_valid(piece.location, dest, player, ignore_player_to_move=True):
+                if self.is_move_valid(
+                    piece.location, dest, player, ignore_player_to_move=True
+                ):
                     return True
 
         return False

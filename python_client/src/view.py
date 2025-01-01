@@ -8,7 +8,6 @@ import sys
 from typing import Generator, NoReturn, Protocol
 from cs150241project_networking import CS150241ProjectNetworking, Message
 from project_types import (
-    MakeMoveGameMessageContentDict,
     Player,
     PieceKind,
     Location,
@@ -16,8 +15,11 @@ from project_types import (
     GameState,
     MoveFeedback,
     MoveFeedbackInfo,
+    PlaceFeedback,
+    PlaceFeedbackInfo,
     GameMessageType,
     GameMessageDict,
+    MakeMoveGameMessageContentDict,
 )
 # import random
 
@@ -873,7 +875,13 @@ class BoardGameView:
             case _:
                 self._pieces[fb.move_src].reset_to_spot()
 
-    def update_new_piece(self, fb: MoveFeedback) -> None:
+    def update_place(self, fb: PlaceFeedback) -> None:
+        # todo: implement piece placement in view
+        match fb.info:
+            case PlaceFeedbackInfo.VALID:
+                pass
+            case _:
+                pass
         pass
 
     def on_state_change(self, state: GameState) -> None:

@@ -5,7 +5,7 @@ import Prelude
 import CS150241Project.GameEngine (startNetworkGame)
 import CS150241Project.Graphics (clearCanvas, drawImageScaled, drawRect, drawText)
 import CS150241Project.Networking (Message)
-import Data.Int as Int
+import Data.Int (toNumber)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.Number as Number
@@ -13,7 +13,7 @@ import Effect (Effect)
 import Effect.Console (log)
 import Effect.Random (randomRange)
 import Graphics.Canvas as Canvas
-import Data.Array ((..), (!!))
+import Data.Array ((..))
 import Data.Foldable (foldl)
 
 width :: Number
@@ -22,23 +22,43 @@ width = 600.0
 height :: Number
 height = 600.0
 
-columns :: Int
-columns = 8
+cols :: Int
+cols = 8
 
 rows :: Int
 rows = 8
 
 tileWidth :: Number
-tileWidth = Number.floor $ width / (Int.toNumber columns)
+tileWidth = Number.floor $ width / (toNumber cols)
 
 tileHeight :: Number
-tileHeight = Number.floor $ height / (Int.toNumber rows)
+tileHeight = Number.floor $ height / (toNumber rows)
 
 fps :: Int
 fps = 60
 
+data PieceKind
+  = King
+  | Lance
+  | Pawn
+
+type Location =
+  { row :: Int
+  , col :: Int
+  }
+
+type Piece =
+  { player :: Int
+  , pieceKind :: PieceKind
+  , location :: Location
+  , movement :: Array Location
+  , isProtected :: Boolean
+  , canCapture :: Boolean
+  }
+
 type GameState =
   { tickCount :: Int
+  , pieces :: Array Piece
   , x :: Number
   , y :: Number
   , lastReceivedMessage :: Maybe Message
@@ -48,7 +68,32 @@ initialState :: Effect GameState
 initialState = do
   x <- randomRange 0.0 width
   y <- randomRange 0.0 height
-  pure { tickCount: 0, x, y, lastReceivedMessage: Nothing }
+
+  let
+    createPawn :: Int -> Location -> Piece
+    createPawn player location =
+      let
+        movement =
+          if player == 1 then
+            [ { row: 1, col: 0 } ]
+          else
+            [ { row: -1, col: 0 } ]
+      in
+        { player
+        , pieceKind: Pawn
+        , location
+        , movement
+        , isProtected: false
+        , canCapture: false
+        }
+
+  pieces <- pure $
+    [
+      -- Player 1
+      createPawn 1 { row: 1, col: 0 }
+    -- Player 2
+    ]
+  pure { tickCount: 0, pieces, x, y, lastReceivedMessage: Nothing }
 
 onTick :: (String -> Effect Unit) -> GameState -> Effect GameState
 onTick send gameState = do
@@ -104,6 +149,7 @@ onRender images ctx gameState = do
   renderGame = do
     clearCanvas ctx { color: "black", width, height }
     renderGrid
+    renderPieces gameState.pieces
 
   renderTile :: Int -> Int -> Effect Unit
   renderTile r c =
@@ -115,8 +161,8 @@ onRender images ctx gameState = do
           "black"
     in
       drawRect ctx
-        { x: (Int.toNumber c) * tileWidth
-        , y: (Int.toNumber r) * tileHeight
+        { x: (toNumber c) * tileWidth
+        , y: (toNumber r) * tileHeight
         , width: tileWidth
         , height: tileHeight
         , color
@@ -125,7 +171,7 @@ onRender images ctx gameState = do
   renderRow :: Int -> Effect Unit
   renderRow row =
     let
-      cs = (0 .. columns)
+      cs = (0 .. cols)
     in
       foldl (<>) (pure unit) $ (renderTile row) <$> cs
 
@@ -135,6 +181,26 @@ onRender images ctx gameState = do
       rs = (0 .. rows)
     in
       foldl (<>) (pure unit) $ renderRow <$> rs
+
+  renderPiece :: Piece -> Effect Unit
+  renderPiece piece =
+    let
+      location = piece.location
+      x = tileWidth * (toNumber location.col)
+      y = tileHeight * (toNumber location.row)
+
+      lookupResult = case piece.pieceKind of
+        King -> Map.lookup "assets/lui_wink_ed.jpg" images
+        Lance -> Map.lookup "assets/lui_bright.jpg" images
+        Pawn -> Map.lookup "assets/lui_sword.jpg" images
+    in
+      case lookupResult of
+        Nothing -> pure unit
+        Just img -> drawImageScaled ctx img { x, y, width: tileWidth, height: tileHeight }
+
+  renderPieces :: Array Piece -> Effect Unit
+  renderPieces pieces =
+    foldl (<>) (pure unit) $ renderPiece <$> pieces
 
 main :: Effect Unit
 main =
@@ -151,5 +217,9 @@ main =
     , height
     , ipAddress: "localhost"
     , port: 15000
-    , imagePaths: [ "assets/lui_sword.jpg" ]
+    , imagePaths:
+        [ "assets/lui_wink_ed.jpg"
+        , "assets/lui_sword.jpg"
+        , "assets/lui_sword.jpg"
+        ]
     }

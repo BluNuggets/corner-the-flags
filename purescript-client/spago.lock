@@ -5,10 +5,15 @@
         "path": "./",
         "core": {
           "dependencies": [
+            "arrays",
             "console",
             "cs150241project-lib",
             "effect",
-            "prelude"
+            "integers",
+            "lists",
+            "maybe",
+            "prelude",
+            "tuples"
           ],
           "build_plan": [
             "aff",

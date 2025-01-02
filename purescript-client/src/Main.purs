@@ -3,20 +3,36 @@ module Main where
 import Prelude
 
 import CS150241Project.GameEngine (startNetworkGame)
-import CS150241Project.Graphics (clearCanvas, drawImageScaled, drawText)
+import CS150241Project.Graphics (clearCanvas, drawImageScaled, drawRect, drawText)
 import CS150241Project.Networking (Message)
+import Data.Int as Int
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
+import Data.Number as Number
 import Effect (Effect)
 import Effect.Console (log)
 import Effect.Random (randomRange)
 import Graphics.Canvas as Canvas
+import Data.Array ((..), (!!))
+import Data.Foldable (foldl)
 
 width :: Number
-width = 500.0
+width = 600.0
 
 height :: Number
-height = 500.0
+height = 600.0
+
+columns :: Int
+columns = 8
+
+rows :: Int
+rows = 8
+
+tileWidth :: Number
+tileWidth = Number.floor $ width / (Int.toNumber columns)
+
+tileHeight :: Number
+tileHeight = Number.floor $ height / (Int.toNumber rows)
 
 fps :: Int
 fps = 60
@@ -66,7 +82,7 @@ onMessage _ message gameState = do
 
 onRender :: Map.Map String Canvas.CanvasImageSource -> Canvas.Context2D -> GameState -> Effect Unit
 onRender images ctx gameState = do
-  clearCanvas ctx { color: "black", width, height }
+  renderGame
 
   let
     x = width / 2.0
@@ -82,6 +98,45 @@ onRender images ctx gameState = do
   case Map.lookup "assets/lui_sword.jpg" images of
     Nothing -> pure unit
     Just img -> drawImageScaled ctx img { x: gameState.x, y: gameState.y, width: 100.0, height: 100.0 }
+
+  where
+  renderGame :: Effect Unit
+  renderGame = do
+    clearCanvas ctx { color: "black", width, height }
+    renderGrid
+
+  renderTile :: Int -> Int -> Effect Unit
+  renderTile r c =
+    let
+      color =
+        if mod (r + c) 2 == 0 then
+          "black"
+        else
+          "white"
+    in
+      drawRect ctx
+        { x: (Int.toNumber c) * tileWidth
+        , y: (Int.toNumber r) * tileHeight
+        , width: tileWidth
+        , height: tileHeight
+        , color
+        }
+
+  renderGrid :: Effect Unit
+  renderGrid =
+    let
+      rs = (0 .. rows)
+      cs = (0 .. columns)
+    in
+      -- This is a rather strange implementation, 
+      -- but this was honestly the best way I could think of writing this so far
+      foldl (<>) (pure unit)
+        ( map
+            ( \r ->
+                foldl (<>) (pure unit) $ map (\c -> renderTile r c) cs
+            )
+            rs
+        )
 
 main :: Effect Unit
 main =

@@ -47,6 +47,12 @@ type Location =
   , col :: Int
   }
 
+newLocation :: Int -> Int -> Location
+newLocation row col =
+  { row
+  , col
+  }
+
 type Piece =
   { player :: Int
   , pieceKind :: PieceKind
@@ -59,25 +65,20 @@ type Piece =
 type GameState =
   { tickCount :: Int
   , pieces :: Array Piece
-  , x :: Number
-  , y :: Number
   , lastReceivedMessage :: Maybe Message
   }
 
 initialState :: Effect GameState
 initialState = do
-  x <- randomRange 0.0 width
-  y <- randomRange 0.0 height
-
   let
     createPawn :: Int -> Location -> Piece
     createPawn player location =
       let
         movement =
           if player == 1 then
-            [ { row: 1, col: 0 } ]
+            [ newLocation (-1) 0 ]
           else
-            [ { row: -1, col: 0 } ]
+            [ newLocation 1 0 ]
       in
         { player
         , pieceKind: Pawn
@@ -90,22 +91,39 @@ initialState = do
   pieces <- pure $
     [
       -- Player 1
-      createPawn 1 { row: 1, col: 0 }
-    -- Player 2
+      createPawn 1 (newLocation 6 0)
+    , createPawn 1 (newLocation 6 1)
+    , createPawn 1 (newLocation 6 2)
+    , createPawn 1 (newLocation 6 3)
+    , createPawn 1 (newLocation 6 4)
+    , createPawn 1 (newLocation 6 5)
+    , createPawn 1 (newLocation 6 6)
+    , createPawn 1 (newLocation 6 7)
+    ,
+      -- Player 2
+      createPawn 2 (newLocation 1 0)
+    , createPawn 2 (newLocation 1 1)
+    , createPawn 2 (newLocation 1 2)
+    , createPawn 2 (newLocation 1 3)
+    , createPawn 2 (newLocation 1 4)
+    , createPawn 2 (newLocation 1 5)
+    , createPawn 2 (newLocation 1 6)
+    , createPawn 2 (newLocation 1 7)
     ]
-  pure { tickCount: 0, pieces, x, y, lastReceivedMessage: Nothing }
+  pure { tickCount: 0, pieces, lastReceivedMessage: Nothing }
 
 onTick :: (String -> Effect Unit) -> GameState -> Effect GameState
 onTick send gameState = do
   log $ "Tick: " <> show gameState.tickCount
 
-  if gameState.tickCount `mod` fps == 0 then do
-    x <- randomRange 0.0 width
-    y <- randomRange 0.0 height
-    send $ "Moved to (" <> show x <> ", " <> show y <> ")"
-    pure $ gameState { x = x, y = y, tickCount = gameState.tickCount + 1 }
-  else
-    pure $ gameState { tickCount = gameState.tickCount + 1 }
+  {--
+if gameState.tickCount `mod` fps == 0 then do
+  y <- randomRange 0.0 height
+  send $ "Moved to (" <> show x <> ", " <> show y <> ")"
+  pure $ gameState { x = x, y = y, tickCount = gameState.tickCount + 1 }
+else
+--}
+  pure $ gameState { tickCount = gameState.tickCount + 1 }
 
 onMouseDown :: (String -> Effect Unit) -> { x :: Int, y :: Int } -> GameState -> Effect GameState
 onMouseDown send { x, y } gameState = do
@@ -139,10 +157,6 @@ onRender images ctx gameState = do
   case gameState.lastReceivedMessage of
     Nothing -> drawText ctx { x, y, color, font, size, text: "No messages received yet" }
     Just message -> drawText ctx { x, y, color, font, size, text: "Last received message: " <> message.payload }
-
-  case Map.lookup "assets/lui_sword.jpg" images of
-    Nothing -> pure unit
-    Just img -> drawImageScaled ctx img { x: gameState.x, y: gameState.y, width: 100.0, height: 100.0 }
 
   where
   renderGame :: Effect Unit

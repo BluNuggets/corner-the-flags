@@ -110,9 +110,9 @@ onRender images ctx gameState = do
     let
       color =
         if mod (r + c) 2 == 0 then
-          "black"
-        else
           "white"
+        else
+          "black"
     in
       drawRect ctx
         { x: (Int.toNumber c) * tileWidth

@@ -122,21 +122,19 @@ onRender images ctx gameState = do
         , color
         }
 
+  renderRow :: Int -> Effect Unit
+  renderRow row =
+    let
+      cs = (0 .. columns)
+    in
+      foldl (<>) (pure unit) $ (renderTile row) <$> cs
+
   renderGrid :: Effect Unit
   renderGrid =
     let
       rs = (0 .. rows)
-      cs = (0 .. columns)
     in
-      -- This is a rather strange implementation, 
-      -- but this was honestly the best way I could think of writing this so far
-      foldl (<>) (pure unit)
-        ( map
-            ( \r ->
-                foldl (<>) (pure unit) $ map (\c -> renderTile r c) cs
-            )
-            rs
-        )
+      foldl (<>) (pure unit) $ renderRow <$> rs
 
 main :: Effect Unit
 main =

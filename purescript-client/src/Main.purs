@@ -3,18 +3,17 @@ module Main where
 import Prelude
 
 import CS150241Project.GameEngine (startNetworkGame)
-import CS150241Project.Graphics (clearCanvas, drawImageScaled, drawRect, drawText)
+import CS150241Project.Graphics (clearCanvas, drawImageScaled, drawRect, drawRectOutline, drawText)
 import CS150241Project.Networking (Message)
-import Data.Int (toNumber)
+import Data.Array (updateAt, (!!), (..), elem)
+import Data.Foldable (foldl)
+import Data.Int (toNumber, floor)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.Number as Number
 import Effect (Effect)
 import Effect.Console (log)
-import Effect.Random (randomRange)
 import Graphics.Canvas as Canvas
-import Data.Array ((..))
-import Data.Foldable (foldl)
 
 width :: Number
 width = 600.0
@@ -53,6 +52,46 @@ newLocation row col =
   , col
   }
 
+posToLocation :: Int -> Int -> Location
+posToLocation y x =
+  let
+    row = y / (floor tileWidth)
+    col = x / (floor tileHeight)
+  in
+    { row, col }
+
+getPieceAtLocation :: Array Piece -> Location -> Maybe Piece
+getPieceAtLocation pieces location =
+  loop 0
+  where
+  loop :: Int -> Maybe Piece
+  loop i =
+    case pieces !! i of
+      Just piece ->
+        if piece.location == location then
+          Just piece
+        else
+          loop (i + 1)
+      Nothing -> Nothing
+
+getPieceIndex :: Array Piece -> Piece -> Maybe Int
+getPieceIndex pieces targetPiece =
+  loop 0
+  where
+  loop :: Int -> Maybe Int
+  loop i =
+    case pieces !! i of
+      Just piece ->
+        if piece.location == targetPiece.location then
+          Just i
+        else
+          loop (i + 1)
+      Nothing -> Nothing
+
+getAllMovements :: Array Location -> Location -> Array Location
+getAllMovements deltas location =
+  deltas <#> (add location)
+
 type Piece =
   { player :: Int
   , pieceKind :: PieceKind
@@ -65,6 +104,9 @@ type Piece =
 type GameState =
   { tickCount :: Int
   , pieces :: Array Piece
+  , player :: Int
+  , currentPlayer :: Int
+  , activePieceIndex :: Maybe Int
   , lastReceivedMessage :: Maybe Message
   }
 
@@ -110,11 +152,18 @@ initialState = do
     , createPawn 2 (newLocation 1 6)
     , createPawn 2 (newLocation 1 7)
     ]
-  pure { tickCount: 0, pieces, lastReceivedMessage: Nothing }
+  pure
+    { tickCount: 0
+    , pieces
+    , player: 1
+    , currentPlayer: 1
+    , activePieceIndex: Nothing
+    , lastReceivedMessage: Nothing
+    }
 
 onTick :: (String -> Effect Unit) -> GameState -> Effect GameState
 onTick send gameState = do
-  log $ "Tick: " <> show gameState.tickCount
+  -- log $ "Tick: " <> show gameState.tickCount
 
   {--
 if gameState.tickCount `mod` fps == 0 then do
@@ -128,7 +177,35 @@ else
 onMouseDown :: (String -> Effect Unit) -> { x :: Int, y :: Int } -> GameState -> Effect GameState
 onMouseDown send { x, y } gameState = do
   send $ show x <> "," <> show y
-  pure gameState
+  log $ show y <> "," <> show x
+
+  clickLocation <- pure $ posToLocation y x
+
+  case gameState.activePieceIndex of
+    Just index ->
+      case gameState.pieces !! index of
+        Just piece ->
+          let
+            possibleMovements = getAllMovements piece.movement piece.location
+          in
+            if piece.location /= clickLocation && elem clickLocation possibleMovements then
+              case updateAt index (piece { location = clickLocation }) gameState.pieces of
+                Just newPieces -> pure $ gameState { pieces = newPieces, activePieceIndex = Nothing }
+                Nothing -> pure gameState
+            else
+              pure $ gameState { activePieceIndex = Nothing }
+        Nothing -> pure gameState
+    Nothing -> do
+      foundPiece <- pure $ getPieceAtLocation gameState.pieces clickLocation
+      case foundPiece of
+        Just piece ->
+          if piece.player == gameState.player then
+            case getPieceIndex gameState.pieces piece of
+              Just index -> pure $ gameState { activePieceIndex = Just index }
+              Nothing -> pure gameState
+          else
+            pure gameState
+        Nothing -> pure gameState
 
 onKeyDown :: (String -> Effect Unit) -> String -> GameState -> Effect GameState
 onKeyDown send key gameState = do
@@ -164,6 +241,7 @@ onRender images ctx gameState = do
     clearCanvas ctx { color: "black", width, height }
     renderGrid
     renderPieces gameState.pieces
+    renderActivePiece gameState.pieces gameState.activePieceIndex
 
   renderTile :: Int -> Int -> Effect Unit
   renderTile r c =
@@ -215,6 +293,20 @@ onRender images ctx gameState = do
   renderPieces :: Array Piece -> Effect Unit
   renderPieces pieces =
     foldl (<>) (pure unit) $ renderPiece <$> pieces
+
+  renderActivePiece :: Array Piece -> Maybe Int -> Effect Unit
+  renderActivePiece pieces mIndex =
+    case mIndex of
+      Just index ->
+        case pieces !! index of
+          Just activePiece ->
+            let
+              x = tileWidth * (toNumber activePiece.location.col)
+              y = tileHeight * (toNumber activePiece.location.row)
+            in
+              drawRectOutline ctx { x, y, width: tileWidth, height: tileHeight, color: "#FF0000" }
+          Nothing -> pure unit
+      Nothing -> pure unit
 
 main :: Effect Unit
 main =

@@ -208,7 +208,7 @@ onMouseDown send { x, y } gameState = do
                 Just piecesAfterMove ->
                   case getPieceAtLocation gameState.pieces clickLocation of
                     Just destPiece ->
-                      if destPiece.info.isProtected then
+                      if destPiece.info.isProtected || destPiece.player == gameState.currentPlayer then
                         pure gameState
                       else
                         case getPieceIndex gameState.pieces destPiece of

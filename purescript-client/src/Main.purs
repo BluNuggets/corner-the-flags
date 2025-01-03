@@ -123,6 +123,22 @@ pawnInfo player =
     , isProtected: false
     }
 
+kingInfo :: PieceInfo
+kingInfo =
+  let
+    drs = ((-1) .. 1)
+    dcs = ((-1) .. 1)
+
+    movements =
+      map (\dr -> map (\dc -> newLocation dr dc) dcs) drs
+        # foldl (<>) []
+        # filter (_ /= newLocation 0 0)
+  in
+    { pieceKind: King
+    , movements
+    , isProtected: true
+    }
+
 type GameState =
   { tickCount :: Int
   , pieces :: Array Piece
@@ -143,6 +159,13 @@ initialState = do
       , location
       }
 
+    createKing :: Int -> Location -> Piece
+    createKing player location =
+      { info: kingInfo
+      , player
+      , location
+      }
+
   pieces <- pure $
     [
       -- Player 1
@@ -154,6 +177,7 @@ initialState = do
     , createPawn 1 (newLocation 6 5)
     , createPawn 1 (newLocation 6 6)
     , createPawn 1 (newLocation 6 7)
+    , createKing 1 (newLocation 7 7)
     ,
       -- Player 2
       createPawn 2 (newLocation 1 0)
@@ -164,6 +188,7 @@ initialState = do
     , createPawn 2 (newLocation 1 5)
     , createPawn 2 (newLocation 1 6)
     , createPawn 2 (newLocation 1 7)
+    , createKing 2 (newLocation 0 0)
     ]
   pure
     { tickCount: 0

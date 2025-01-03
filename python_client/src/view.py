@@ -383,7 +383,7 @@ class CaptureBox:
     _height: int
     _position: Position
     _container: Rect
-    _capture_list_factory: CapturePieceFactory
+    _capture_list_factory: CapturedPieceDefaultFactory
     _capture_list: list[CapturedPiece]
     _buttons: list[Button]
     _slice: tuple[int, int]
@@ -404,7 +404,7 @@ class CaptureBox:
         )
 
         self._capture_list = []
-        self._capture_list_factory = CapturePieceFactory()
+        self._capture_list_factory = CapturedPieceDefaultFactory()
         self._slice = (0, CaptureBox.MAX_PIECES)  # the list shows at most 4 pieces
         self._page = 1
         self._player = player
@@ -572,30 +572,33 @@ class KingSprite(SpriteImage):
     def get_sprite(self) -> Surface:
         return pygame.image.load(os.path.join('src', 'assets', 'lui_wink_ed.jpg'))
 
-# --- MARK: PieceFactory
-class PieceFactory(Protocol):
+# --- MARK: PieceFactories
+class BoardPieceFactory(Protocol):
     @classmethod
     def make(
-        cls, pk: PieceKind, position: Position, size: int, player: Player | None, location: Location | None
-    ) -> Piece | CapturedPiece: ...
+        cls, pk: PieceKind, position: Position, size: int, player: Player, location: Location
+    ) -> Piece: ...
 
-class BoardPieceFactory(PieceFactory):
+class BoardPieceDefaultFactory(BoardPieceFactory):
     @classmethod
-    def make(cls, pk: PieceKind, position: Position, size: int, player: Player | None, location: Location | None) -> Piece:
-        if player is None or location is None:
-            raise Exception(f'Player or Location is not defined for a board piece.')
-        else:
-            match pk:
-                case PieceKind.PAWN:
-                        return Piece(pk, location, PawnSprite(), position, size, player)
-                case PieceKind.KING:
-                    return Piece(pk, location, KingSprite(), position, size, player)
-                case PieceKind.LANCE:
-                    return Piece(pk, location, LanceSprite(), position, size, player)
+    def make(cls, pk: PieceKind, position: Position, size: int, player: Player, location: Location) -> Piece:
+        match pk:
+            case PieceKind.PAWN:
+                    return Piece(pk, location, PawnSprite(), position, size, player)
+            case PieceKind.KING:
+                return Piece(pk, location, KingSprite(), position, size, player)
+            case PieceKind.LANCE:
+                return Piece(pk, location, LanceSprite(), position, size, player)
             
-class CapturePieceFactory(PieceFactory):
+class CapturedPieceFactory(Protocol):
     @classmethod
-    def make(cls, pk: PieceKind, position: Position, size: int, player: Player | None = None, location: Location | None = None) -> CapturedPiece:
+    def make(
+        cls, pk: PieceKind, position: Position, size: int
+    ) -> CapturedPiece: ...
+
+class CapturedPieceDefaultFactory(CapturedPieceFactory):
+    @classmethod
+    def make(cls, pk: PieceKind, position: Position, size: int) -> CapturedPiece:
         match pk:
             case PieceKind.PAWN:
                 return CapturedPiece(pk, PawnSprite(), position, size)
@@ -661,10 +664,9 @@ class BoardGameView:
 
         self._active_cell_to_snap = None
 
-    # todo: will have to fix this to follow OCP
     def _setup_initial_positions(self) -> None:
         init_pos = BoardGamePiecePositions()
-        piece_factory = BoardPieceFactory()
+        piece_factory = BoardPieceDefaultFactory()
 
         for location, player_piece_kind in init_pos.get_positions().items():
             self._pieces[location] = piece_factory.make(
@@ -821,6 +823,7 @@ class BoardGameView:
                                         new_cell_location: Location = (
                                             self._grid.get_location_from_cell(snap_cell)
                                         )
+                                        print(new_cell_location)
                                         self._active_cell_to_snap = snap_cell
                                         self._place_piece(
                                             cap_piece.piece_kind,
@@ -912,7 +915,7 @@ class BoardGameView:
 
             data: GameMessageDict = {
                 'frame': self._frame_count,
-                'message_type': GameMessageType.MOVE,
+                'message_type': GameMessageType.PLACE,
                 'message_content': message_content,
             }
             networking.send(json.dumps(data))

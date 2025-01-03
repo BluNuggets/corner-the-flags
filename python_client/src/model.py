@@ -503,7 +503,8 @@ class BoardGameModel:
             return MoveFeedbackInfo.NO_PIECE_MOVED
 
         # piece in src Location does not belong to the player
-        if src_piece.player != player:
+        # skip this condition if player is not specified (to check "hypothetical" moves)
+        if player is not None and src_piece.player != player:
             return MoveFeedbackInfo.PIECE_DOES_NOT_BELONG_TO_PLAYER
 
         # piece in src Location cannot reach dest Location

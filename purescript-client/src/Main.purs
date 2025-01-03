@@ -295,18 +295,16 @@ onRender images ctx gameState = do
     foldl (<>) (pure unit) $ renderPiece <$> pieces
 
   renderActivePiece :: Array Piece -> Maybe Int -> Effect Unit
-  renderActivePiece pieces mIndex =
-    case mIndex of
-      Just index ->
-        case pieces !! index of
-          Just activePiece ->
-            let
-              x = tileWidth * (toNumber activePiece.location.col)
-              y = tileHeight * (toNumber activePiece.location.row)
-            in
-              drawRectOutline ctx { x, y, width: tileWidth, height: tileHeight, color: "#FF0000" }
-          Nothing -> pure unit
-      Nothing -> pure unit
+  renderActivePiece pieces mIndex = do
+    _ <- pure do
+      index <- mIndex
+      activePiece <- pieces !! index
+
+      x <- pure $ tileWidth * (toNumber activePiece.location.col)
+      y <- pure $ tileHeight * (toNumber activePiece.location.row)
+      pure $ drawRectOutline ctx { x, y, width: tileWidth, height: tileHeight, color: "orange" }
+
+    pure unit
 
 main :: Effect Unit
 main =

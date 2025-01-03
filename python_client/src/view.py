@@ -383,7 +383,7 @@ class CaptureBox:
     _height: int
     _position: Position
     _container: Rect
-    _capture_list_factory: CapturedPieceDefaultFactory
+    _capture_list_factory: CapturedPieceFactory
     _capture_list: list[CapturedPiece]
     _buttons: list[Button]
     _slice: tuple[int, int]
@@ -617,6 +617,7 @@ class BoardGameView:
     _clock: Clock
     _frame_count: int
     _pieces: dict[Location, Piece]
+    _piece_factory: BoardPieceFactory
     _grid: Grid
     _capture_box: CaptureBox
     _current_player: Player
@@ -641,6 +642,7 @@ class BoardGameView:
         self._clock = pygame.time.Clock()
         self._frame_count = 0
         self._pieces = {}
+        self._piece_factory = BoardPieceDefaultFactory()
         self._capture_box = CaptureBox(self._font, state.player)
 
         # todo: setup networking to confirm this works
@@ -666,10 +668,9 @@ class BoardGameView:
 
     def _setup_initial_positions(self) -> None:
         init_pos = BoardGamePiecePositions()
-        piece_factory = BoardPieceDefaultFactory()
 
         for location, player_piece_kind in init_pos.get_positions().items():
-            self._pieces[location] = piece_factory.make(
+            self._pieces[location] = self._piece_factory.make(
                     player_piece_kind[1],
                     self._grid.get_position_from_location(location),
                     self._grid.cell_length,
@@ -945,10 +946,19 @@ class BoardGameView:
                 self._pieces[fb.move_src].reset_to_spot()
 
     def update_place(self, fb: PlaceFeedback) -> None:
-        # todo: implement piece placement in view
         match fb.info:
             case PlaceFeedbackInfo.VALID:
-                pass
+                if fb.place_dest is None:
+                    raise RuntimeError('Error: Place destination was not found')
+
+                # add new piece in location
+                self._pieces[fb.place_dest] = self._piece_factory.make(
+                    fb.place_piece_kind,
+                    self._grid.get_position_from_location(fb.place_dest),
+                    self._grid.cell_length,
+                    self._player,
+                    fb.place_dest,
+                )
             case _:
                 pass
         pass

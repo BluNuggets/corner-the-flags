@@ -705,4 +705,6 @@ class BoardGameModel:
             # add piece to board
             self._board.add_piece(new_piece)
 
+            self.next_move()
+
             return ret

@@ -5,7 +5,7 @@ import Prelude
 import CS150241Project.GameEngine (startNetworkGame)
 import CS150241Project.Graphics (clearCanvas, drawImageScaled, drawRect, drawRectOutline, drawText)
 import CS150241Project.Networking (Message)
-import Data.Array (updateAt, (!!), (..), elem)
+import Data.Array (updateAt, deleteAt, (!!), (..), elem, find)
 import Data.Foldable (foldl)
 import Data.Int (toNumber, floor)
 import Data.Map as Map
@@ -195,6 +195,7 @@ onMouseDown send { x, y } gameState = do
 
   clickLocation <- pure $ posToLocation y x
 
+  -- Nesting hell, should be fixable with a `do` if I'm not mistaken
   case gameState.activePieceIndex of
     Just index ->
       case gameState.pieces !! index of
@@ -204,7 +205,21 @@ onMouseDown send { x, y } gameState = do
           in
             if piece.location /= clickLocation && elem clickLocation possibleMovements then
               case updateAt index (piece { location = clickLocation }) gameState.pieces of
-                Just newPieces -> pure $ gameState { pieces = newPieces, activePieceIndex = Nothing }
+                Just piecesAfterMove ->
+                  case getPieceAtLocation gameState.pieces clickLocation of
+                    Just destPiece ->
+                      if destPiece.info.isProtected then
+                        pure gameState
+                      else
+                        case getPieceIndex gameState.pieces destPiece of
+                          Just capturedIndex ->
+                            case deleteAt capturedIndex piecesAfterMove of
+                              Just piecesAfterCapture ->
+                                pure $ gameState { pieces = piecesAfterCapture, capturedPieces = gameState.capturedPieces <> [ { info: destPiece.info, player: gameState.currentPlayer } ], activePieceIndex = Nothing }
+                              Nothing -> pure gameState
+                          Nothing -> pure gameState
+                    Nothing -> pure $ gameState { pieces = piecesAfterMove, activePieceIndex = Nothing }
+
                 Nothing -> pure gameState
             else
               pure $ gameState { activePieceIndex = Nothing }

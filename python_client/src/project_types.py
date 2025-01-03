@@ -170,6 +170,7 @@ class BoardGamePiecePositions:
             Location(7, 6): (Player.PLAYER_2, PieceKind.PAWN),
             Location(7, 7): (Player.PLAYER_2, PieceKind.PAWN),
             Location(7, 8): (Player.PLAYER_2, PieceKind.PAWN),
+            Location(8, 2): (Player.PLAYER_2, PieceKind.LANCE),
             Location(8, 1): (Player.PLAYER_2, PieceKind.KING),
         }
 

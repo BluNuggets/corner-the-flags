@@ -6,7 +6,7 @@ import pygame
 from pygame import Rect, Surface, Clock, Font
 from pygame.sprite import Group, Sprite
 import sys
-from typing import Generator, NoReturn, Protocol
+from typing import Generator, NoReturn, Protocol, Mapping
 from cs150241project_networking import CS150241ProjectNetworking, Message
 from project_types import (
     PlacePieceGameMessageContentDict,
@@ -337,7 +337,7 @@ class CapturedPiece(Sprite):
     _last_stable_position: Position
     _image: Surface
 
-    def __init__(self, piece: PieceKind, img: Surface, size: int, position: Position):
+    def __init__(self, piece: PieceKind, image: SpriteImage, position: Position, size: int):
         super().__init__()
         self._piece_kind = piece
         self._size = size
@@ -350,7 +350,7 @@ class CapturedPiece(Sprite):
 
         self._position = position
         self._last_stable_position = position
-        self.image = pygame.transform.scale(img, (size, size))
+        self.image = pygame.transform.scale(image.get_sprite(), (size, size))
 
     @property
     def piece_kind(self) -> PieceKind:
@@ -383,6 +383,7 @@ class CaptureBox:
     _height: int
     _position: Position
     _container: Rect
+    _capture_list_factory: CapturePieceFactory
     _capture_list: list[CapturedPiece]
     _buttons: list[Button]
     _slice: tuple[int, int]
@@ -403,6 +404,7 @@ class CaptureBox:
         )
 
         self._capture_list = []
+        self._capture_list_factory = CapturePieceFactory()
         self._slice = (0, CaptureBox.MAX_PIECES)  # the list shows at most 4 pieces
         self._page = 1
         self._player = player
@@ -485,12 +487,11 @@ class CaptureBox:
         footer_rect.center = (self._position.x + (self._width // 2), self._height - 20)
         screen.blit(footer_render, footer_rect)
 
-    def add_captured_piece(self, pk: PieceKind, img_path: str) -> None:
+    def add_captured_piece(self, pk: PieceKind) -> None:
+        # create captured piece using piecefactory (OCP compliance)
         self._capture_list.append(
-            CapturedPiece(
+            self._capture_list_factory.make(
                 pk,
-                pygame.image.load(img_path),
-                int(self._width * 0.5),
                 Position(
                     self._position.x
                     + (self._width // 2)
@@ -500,6 +501,7 @@ class CaptureBox:
                         + (len(self._capture_list) % 4) * self._height * 0.175
                     ),
                 ),
+                int(self._width * 0.5),
             )
         )
 
@@ -525,6 +527,17 @@ class CaptureBox:
                 # update slice
                 self._slice = (self._slice[0] + 4, self._slice[1] + 4)
                 self._page += 1
+
+    def update_captured_list(self, captured_dict: Mapping[Player, Mapping[PieceKind, int]], player: Player) -> None:
+        # clear the current captured list
+        self.capture_list.clear()
+        
+        # iterate through game state `captured_pieces` for the client (only show one player's captured pieces)
+        for pks in captured_dict[player].keys():
+            for _ in range(captured_dict[player][pks]):
+                self.add_captured_piece(pks)
+
+        return
 
 
 # --- MARK: Observers
@@ -563,19 +576,33 @@ class KingSprite(SpriteImage):
 class PieceFactory(Protocol):
     @classmethod
     def make(
-        cls, pk: PieceKind, location: Location, position: Position, size: int, player: Player
-    ) -> Piece: ...
+        cls, pk: PieceKind, position: Position, size: int, player: Player | None, location: Location | None
+    ) -> Piece | CapturedPiece: ...
 
 class BoardPieceFactory(PieceFactory):
     @classmethod
-    def make(cls, pk: PieceKind, location: Location, position: Position, size: int, player: Player) -> Piece:
+    def make(cls, pk: PieceKind, position: Position, size: int, player: Player | None, location: Location | None) -> Piece:
+        if player is None or location is None:
+            raise Exception(f'Player or Location is not defined for a board piece.')
+        else:
+            match pk:
+                case PieceKind.PAWN:
+                        return Piece(pk, location, PawnSprite(), position, size, player)
+                case PieceKind.KING:
+                    return Piece(pk, location, KingSprite(), position, size, player)
+                case PieceKind.LANCE:
+                    return Piece(pk, location, LanceSprite(), position, size, player)
+            
+class CapturePieceFactory(PieceFactory):
+    @classmethod
+    def make(cls, pk: PieceKind, position: Position, size: int, player: Player | None = None, location: Location | None = None) -> CapturedPiece:
         match pk:
             case PieceKind.PAWN:
-                return Piece(pk, location, PawnSprite(), position, size, player)
+                return CapturedPiece(pk, PawnSprite(), position, size)
             case PieceKind.KING:
-                return Piece(pk, location, KingSprite(), position, size, player)
+                return CapturedPiece(pk, KingSprite(), position, size)
             case PieceKind.LANCE:
-                return Piece(pk, location, LanceSprite(), position, size, player)
+                return CapturedPiece(pk, LanceSprite(), position, size)
 
 # --- MARK: BoardGameView
 class BoardGameView:
@@ -642,10 +669,10 @@ class BoardGameView:
         for location, player_piece_kind in init_pos.get_positions().items():
             self._pieces[location] = piece_factory.make(
                     player_piece_kind[1],
-                    location,
                     self._grid.get_position_from_location(location),
                     self._grid.cell_length,
                     player_piece_kind[0],
+                    location,
                 )
 
     # register move observer (usually from controller)
@@ -924,4 +951,5 @@ class BoardGameView:
         pass
 
     def on_state_change(self, state: GameState) -> None:
-        self._player = state.player_to_move
+        self._current_player = state.player_to_move
+        self._capture_box.update_captured_list(state.captured_pieces, self._player)

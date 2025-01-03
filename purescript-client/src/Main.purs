@@ -92,18 +92,41 @@ getAllMovements :: Array Location -> Location -> Array Location
 getAllMovements deltas location =
   deltas <#> (add location)
 
-type Piece =
-  { player :: Int
-  , pieceKind :: PieceKind
-  , location :: Location
-  , movement :: Array Location
+type PieceInfo =
+  { pieceKind :: PieceKind
+  , movements :: Array Location
   , isProtected :: Boolean
-  , canCapture :: Boolean
   }
+
+type Piece =
+  { info :: PieceInfo
+  , player :: Int
+  , location :: Location
+  }
+
+type CapturedPiece =
+  { info :: PieceInfo
+  , player :: Int
+  }
+
+pawnInfo :: Int -> PieceInfo
+pawnInfo player =
+  let
+    movements =
+      if player == 1 then
+        [ newLocation (-1) 0 ]
+      else
+        [ newLocation 1 0 ]
+  in
+    { pieceKind: Pawn
+    , movements
+    , isProtected: false
+    }
 
 type GameState =
   { tickCount :: Int
   , pieces :: Array Piece
+  , capturedPieces :: Array CapturedPiece
   , player :: Int
   , currentPlayer :: Int
   , activePieceIndex :: Maybe Int
@@ -115,20 +138,10 @@ initialState = do
   let
     createPawn :: Int -> Location -> Piece
     createPawn player location =
-      let
-        movement =
-          if player == 1 then
-            [ newLocation (-1) 0 ]
-          else
-            [ newLocation 1 0 ]
-      in
-        { player
-        , pieceKind: Pawn
-        , location
-        , movement
-        , isProtected: false
-        , canCapture: false
-        }
+      { info: pawnInfo player
+      , player
+      , location
+      }
 
   pieces <- pure $
     [
@@ -155,6 +168,7 @@ initialState = do
   pure
     { tickCount: 0
     , pieces
+    , capturedPieces: []
     , player: 1
     , currentPlayer: 1
     , activePieceIndex: Nothing
@@ -186,7 +200,7 @@ onMouseDown send { x, y } gameState = do
       case gameState.pieces !! index of
         Just piece ->
           let
-            possibleMovements = getAllMovements piece.movement piece.location
+            possibleMovements = getAllMovements piece.info.movements piece.location
           in
             if piece.location /= clickLocation && elem clickLocation possibleMovements then
               case updateAt index (piece { location = clickLocation }) gameState.pieces of
@@ -281,7 +295,7 @@ onRender images ctx gameState = do
       x = tileWidth * (toNumber location.col)
       y = tileHeight * (toNumber location.row)
 
-      lookupResult = case piece.pieceKind of
+      lookupResult = case piece.info.pieceKind of
         King -> Map.lookup "assets/lui_wink_ed.jpg" images
         Lance -> Map.lookup "assets/lui_bright.jpg" images
         Pawn -> Map.lookup "assets/lui_sword.jpg" images

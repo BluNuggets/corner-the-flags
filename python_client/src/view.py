@@ -374,6 +374,7 @@ class CapturedPiece(Sprite):
             tuple(self._last_stable_position),
             (self._size, self._size),
         )
+        self._position = self._last_stable_position
 
 
 # --- MARK: Capture Box
@@ -528,6 +529,8 @@ class CaptureBox:
                 self._slice = (self._slice[0] + 4, self._slice[1] + 4)
                 self._page += 1
 
+        return
+
     def update_captured_list(self, captured_dict: Mapping[Player, Mapping[PieceKind, int]], player: Player) -> None:
         # clear the current captured list
         self.capture_list.clear()
@@ -538,6 +541,10 @@ class CaptureBox:
                 self.add_captured_piece(pks)
 
         return
+    
+    def reset_captured_pieces(self) -> None:
+        for piece in self._capture_list:
+            piece.reset_to_spot()
 
 
 # --- MARK: Observers
@@ -819,7 +826,7 @@ class BoardGameView:
 
                                     # todo: validate move through model
                                     if snap_cell is None:
-                                        cap_piece.reset_to_spot()
+                                        self._capture_box.reset_captured_pieces()
                                     else:
                                         new_cell_location: Location = (
                                             self._grid.get_location_from_cell(snap_cell)
@@ -960,7 +967,7 @@ class BoardGameView:
                     fb.place_dest,
                 )
             case _:
-                pass
+                self._capture_box.reset_captured_pieces()
         pass
 
     def on_state_change(self, state: GameState) -> None:

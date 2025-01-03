@@ -5,7 +5,7 @@ import Prelude
 import CS150241Project.GameEngine (startNetworkGame)
 import CS150241Project.Graphics (clearCanvas, drawImageScaled, drawRect, drawRectOutline, drawText)
 import CS150241Project.Networking (Message)
-import Data.Array (updateAt, deleteAt, (!!), (..), elem, find)
+import Data.Array (updateAt, deleteAt, (!!), (..), elem, find, filter)
 import Data.Foldable (foldl)
 import Data.Int (toNumber, floor)
 import Data.Map as Map
@@ -201,24 +201,33 @@ onMouseDown send { x, y } gameState = do
       case gameState.pieces !! index of
         Just piece ->
           let
-            possibleMovements = getAllMovements piece.info.movements piece.location
+            locationInBounds :: Location -> Boolean
+            locationInBounds location =
+              elem location.row (0 .. rows) && elem location.col (0 .. cols)
+            possibleMovements = getAllMovements piece.info.movements piece.location # (filter locationInBounds)
           in
             if piece.location /= clickLocation && elem clickLocation possibleMovements then
               case updateAt index (piece { location = clickLocation }) gameState.pieces of
                 Just piecesAfterMove ->
                   case getPieceAtLocation gameState.pieces clickLocation of
                     Just destPiece ->
-                      if destPiece.info.isProtected || destPiece.player == gameState.currentPlayer then
+                      if piece.info.isProtected || destPiece.info.isProtected || destPiece.player == gameState.currentPlayer then
                         pure gameState
                       else
                         case getPieceIndex gameState.pieces destPiece of
                           Just capturedIndex ->
                             case deleteAt capturedIndex piecesAfterMove of
                               Just piecesAfterCapture ->
-                                pure $ gameState { pieces = piecesAfterCapture, capturedPieces = gameState.capturedPieces <> [ { info: destPiece.info, player: gameState.currentPlayer } ], activePieceIndex = Nothing }
+                                pure $ gameState
+                                  { pieces = piecesAfterCapture
+                                  , capturedPieces = gameState.capturedPieces <> [ { info: destPiece.info, player: gameState.currentPlayer } ]
+                                  , activePieceIndex = Nothing
+                                  }
                               Nothing -> pure gameState
                           Nothing -> pure gameState
-                    Nothing -> pure $ gameState { pieces = piecesAfterMove, activePieceIndex = Nothing }
+                    Nothing ->
+                      pure $ gameState
+                        { pieces = piecesAfterMove, activePieceIndex = Nothing }
 
                 Nothing -> pure gameState
             else

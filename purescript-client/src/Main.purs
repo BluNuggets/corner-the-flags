@@ -220,44 +220,37 @@ onMouseDown send { x, y } gameState = do
 
   clickLocation <- pure $ posToLocation y x
 
-  -- Nesting hell, should be fixable with a `do` if I'm not mistaken
-  case gameState.activePieceIndex of
-    Just index ->
-      case gameState.pieces !! index of
-        Just piece ->
-          let
-            locationInBounds :: Location -> Boolean
-            locationInBounds location =
-              elem location.row (0 .. rows) && elem location.col (0 .. cols)
-            possibleMovements = getAllMovements piece.info.movements piece.location # (filter locationInBounds)
-          in
-            if piece.location /= clickLocation && elem clickLocation possibleMovements then
-              case updateAt index (piece { location = clickLocation }) gameState.pieces of
-                Just piecesAfterMove ->
-                  case getPieceAtLocation gameState.pieces clickLocation of
-                    Just destPiece ->
-                      if piece.info.isProtected || destPiece.info.isProtected || destPiece.player == gameState.currentPlayer then
-                        pure gameState
-                      else
-                        case getPieceIndex gameState.pieces destPiece of
-                          Just capturedIndex ->
-                            case deleteAt capturedIndex piecesAfterMove of
-                              Just piecesAfterCapture ->
-                                pure $ gameState
-                                  { pieces = piecesAfterCapture
-                                  , capturedPieces = gameState.capturedPieces <> [ { info: destPiece.info, player: gameState.currentPlayer } ]
-                                  , activePieceIndex = Nothing
-                                  }
-                              Nothing -> pure gameState
-                          Nothing -> pure gameState
-                    Nothing ->
-                      pure $ gameState
-                        { pieces = piecesAfterMove, activePieceIndex = Nothing }
+  let
+    onMovement :: Maybe (GameState)
+    onMovement = do
+      index <- gameState.activePieceIndex
+      piece <- gameState.pieces !! index
 
-                Nothing -> pure gameState
-            else
-              pure $ gameState { activePieceIndex = Nothing }
-        Nothing -> pure gameState
+      let
+        locationInBounds :: Location -> Boolean
+        locationInBounds location =
+          elem location.row (0 .. rows) && elem location.col (0 .. cols)
+        possibleMovements = getAllMovements piece.info.movements piece.location # (filter locationInBounds)
+
+      if piece.location /= clickLocation && elem clickLocation possibleMovements then do
+        piecesAfterMove <- updateAt index (piece { location = clickLocation }) gameState.pieces
+        case getPieceAtLocation gameState.pieces clickLocation of
+          Just destPiece -> do
+            if not (piece.info.isProtected || destPiece.info.isProtected || destPiece.player == gameState.currentPlayer) then do
+              capturedIndex <- getPieceIndex gameState.pieces destPiece
+              piecesAfterCapture <- deleteAt capturedIndex piecesAfterMove
+
+              pure $ gameState
+                { pieces = piecesAfterCapture
+                , capturedPieces = gameState.capturedPieces <> [ { info: destPiece.info, player: gameState.currentPlayer } ]
+                , activePieceIndex = Nothing
+                }
+            else pure gameState
+          Nothing -> pure $ gameState { pieces = piecesAfterMove, activePieceIndex = Nothing }
+      else pure gameState
+
+  case onMovement of
+    Just newGameState -> pure newGameState
     Nothing -> do
       foundPiece <- pure $ getPieceAtLocation gameState.pieces clickLocation
       case foundPiece of

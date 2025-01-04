@@ -28,7 +28,8 @@ from project_types import (
 
 # --- MARK: Constants
 REL_CAPTURED_BOX_WIDTH = 0.15
-SCREEN_WIDTH = 1000
+REL_TEXT_MARGIN = 20
+SCREEN_WIDTH = 900
 SCREEN_HEIGHT = 700
 FPS = 60
 
@@ -177,7 +178,7 @@ class Grid:
     _cell_length: int
     _grid: list[list[Rect]]
     _player: Player
-    _margin: int = 20
+    _margin: int
 
     def __init__(
         self, s_w: int, s_h: int, dim_x: int, dim_y: int, player: Player
@@ -186,6 +187,7 @@ class Grid:
         self._relative_height = s_h
         self._dim_x = dim_x
         self._dim_y = dim_y
+        self._margin = s_h // REL_TEXT_MARGIN
         self._cell_length = min(
             (self._relative_height - (2 * self._margin)) // dim_x,
             (self._relative_width - (2 * self._margin)) // dim_y,
@@ -653,9 +655,12 @@ class BoardGameView:
         self._piece_factory = BoardPieceDefaultFactory()
         self._capture_box = CaptureBox(self._font, state.player)
 
-        # todo: setup networking to confirm this works
+        # state variables
         self._current_player = state.player_to_move
         self._player = state.player
+        self._turn = state.turn
+        self._action = state.move
+        self._game_status = state.game_status
 
         # grid initialization comes after player initialization
         self._grid = Grid(
@@ -672,8 +677,8 @@ class BoardGameView:
         self._place_piece_observers = []
         self._receive_message_observers = []
 
+        # mouse functionality variables
         self._active_cell_to_snap = None
-        self._game_status = state.game_status
 
     def _setup_initial_positions(self) -> None:
         init_pos = BoardGamePiecePositions()
@@ -870,6 +875,8 @@ class BoardGameView:
     def render_frame(self) -> None:
         self._screen.fill('black')
 
+        self._render_game_details()
+
         self._grid.render(self._screen)
 
         group_sprites: Group[Sprite] = Group()
@@ -891,6 +898,30 @@ class BoardGameView:
             self._render_end_screen("Player 2 (Blue) Wins")
 
         return
+    
+    def _render_game_details(self) -> None:
+        # current player (and client player)
+        player_render: Surface = self._font.render(
+            f"Current Player: {self._current_player} ({"You" if self._current_player == self._player else "Opponent" })",
+            True,
+            "white")
+        player_rect: Rect = player_render.get_rect()
+        player_rect.center = (
+            (self._width - (self._width * REL_CAPTURED_BOX_WIDTH)) // 2,
+            REL_TEXT_MARGIN,
+        )
+        self._screen.blit(player_render, player_rect)
+        
+        turn_render: Surface = self._font.render(
+            f"Turn {self._turn}, Action {self._action}",
+            True,
+            "white")
+        turn_rect: Rect = turn_render.get_rect()
+        turn_rect.center = (
+            (self._width - (self._width * REL_CAPTURED_BOX_WIDTH)) // 2,
+            SCREEN_HEIGHT - REL_TEXT_MARGIN,
+        )
+        self._screen.blit(turn_render, turn_rect)
 
     def _render_end_screen(self, msg: str) -> None:
         #translucent frame
@@ -1005,4 +1036,6 @@ class BoardGameView:
     def on_state_change(self, state: GameState) -> None:
         self._current_player = state.player_to_move
         self._capture_box.update_captured_list(state.captured_pieces, self._player)
+        self._turn = state.turn
+        self._action = state.move
         self._game_status = state.game_status

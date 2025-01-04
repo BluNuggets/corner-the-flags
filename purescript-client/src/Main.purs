@@ -265,8 +265,8 @@ getPieceIndex pieces targetPiece =
           loop (i + 1)
       Nothing -> Nothing
 
-getAllMovements :: Array Location -> Location -> Array Location
-getAllMovements deltas location =
+getAllMovements :: Location -> Array Location -> Array Location
+getAllMovements location deltas =
   deltas <#> (add location)
 
 type PieceInfo =
@@ -479,7 +479,38 @@ onMouseDown _ { x, y } gameState =
 
   placeCapturedPiece :: Location -> Int -> GameState -> GameState
   placeCapturedPiece clickLocation index state =
-    state
+    let
+      locationInBounds :: Location -> Boolean
+      locationInBounds location =
+        elem location.row (0 .. (rows - 1)) && elem location.col (0 .. (cols - 1))
+
+      mNewState = do
+        capturedPiece <- state.capturedPieces !! index
+        enemyPieces <- pure $ filter (\p -> not (isSamePlayer p.player state.player)) state.pieces
+        allPieceLocations <- pure $ map (_.location) state.pieces
+        allPossibleAttacks <- pure $ foldl (<>) [] $ zipWith getAllMovements (map (_.location) enemyPieces) (map (_.info.movements) enemyPieces)
+        invalidLocations <- pure $ allPieceLocations <> allPossibleAttacks
+
+        if locationInBounds clickLocation && not (elem clickLocation invalidLocations) then do
+          newCapturedPieces <- deleteAt index state.capturedPieces
+
+          let
+            newPieces = state.pieces <> [ { info: capturedPiece.info, player: capturedPiece.player, location: clickLocation } ]
+            newCount = length newCapturedPieces
+            newPageCount = 1 + (newCount - 1) / state.capturedPanel.maxCapturedPerPage
+
+          pure $ state
+            { pieces = newPieces
+            , capturedPieces = newCapturedPieces
+            , activeCapturedPieceIndex = Nothing
+            , capturedPanel { currentPageCount = newPageCount }
+            }
+        else
+          pure state
+    in
+      case mNewState of
+        Just newState -> newState
+        Nothing -> state
 
   movePiece :: Location -> Int -> GameState -> GameState
   movePiece clickLocation index state =
@@ -490,7 +521,7 @@ onMouseDown _ { x, y } gameState =
 
       mNewState = do
         piece <- state.pieces !! index
-        possibleMovements <- pure $ getAllMovements piece.info.movements piece.location # (filter locationInBounds)
+        possibleMovements <- pure $ getAllMovements piece.location piece.info.movements # (filter locationInBounds)
 
         if piece.location /= clickLocation && elem clickLocation possibleMovements then do
           piecesAfterMove <- updateAt index (piece { location = clickLocation }) state.pieces

@@ -205,6 +205,7 @@ class PlaceFeedbackInfo(StrEnum):
     SQUARE_OUT_OF_BOUNDS = 'Square out of bounds'
     NO_PLAYER_PLAYED = 'No player played'
     NO_PIECE_PLACED = 'No piece placed'
+    BLOCKS_PROTECTED_PIECE_MOVEMENT = 'Blocks protected piece movement'
     CAPTURES_PIECE = 'Captures a piece'
     VALID = 'Valid'
 

@@ -437,7 +437,7 @@ class BoardGameModel:
         for piece in self.protected_pieces[player]:
             for dest in piece.destinations:
                 if self.is_move_valid(
-                    piece.location, dest, player, ignore_player_to_move=True
+                    piece.location, dest, player
                 ):
                     return True
 
@@ -479,13 +479,11 @@ class BoardGameModel:
         self,
         src: Location,
         dest: Location,
-        player: Player,
-        *,
-        ignore_player_to_move: bool = False,
+        player: Player | None
     ) -> MoveFeedbackInfo:
         # not currently player's turn to move
-        # optionally ignore player to move to check "hypothetical" moves
-        if self._state.player_to_move != player and not ignore_player_to_move:
+        # skip this condition if player is not specified (to check "hypothetical" moves)
+        if player is not None and self._state.player_to_move != player:
             return MoveFeedbackInfo.NOT_CURRENT_PLAYER
 
         # src Location does not exist in board
@@ -505,7 +503,8 @@ class BoardGameModel:
             return MoveFeedbackInfo.NO_PIECE_MOVED
 
         # piece in src Location does not belong to the player
-        if src_piece.player != player:
+        # skip this condition if player is not specified (to check "hypothetical" moves)
+        if player is not None and src_piece.player != player:
             return MoveFeedbackInfo.PIECE_DOES_NOT_BELONG_TO_PLAYER
 
         # piece in src Location cannot reach dest Location
@@ -536,13 +535,11 @@ class BoardGameModel:
         self,
         src: Location,
         dest: Location,
-        player: Player,
-        *,
-        ignore_player_to_move: bool = False,
+        player: Player | None
     ) -> bool:
         return (
             self.get_move_feedback_info(
-                src, dest, player, ignore_player_to_move=ignore_player_to_move
+                src, dest, player
             )
             == MoveFeedbackInfo.VALID
         )
@@ -620,13 +617,11 @@ class BoardGameModel:
         self,
         piece_kind: PieceKind,
         dest: Location,
-        player: Player,
-        *,
-        ignore_player_to_move: bool = False,
+        player: Player | None
     ) -> PlaceFeedbackInfo:
         # not currently player's turn to place
-        # optionally ignore player to place to check "hypothetical" places
-        if self._state.player_to_move != player and not ignore_player_to_move:
+        # skip this condition if player is not specified (to check "hypothetical" places)
+        if player is not None and self._state.player_to_move != player:
             return PlaceFeedbackInfo.NOT_CURRENT_PLAYER
 
         # dest Location does not exist in board
@@ -639,15 +634,20 @@ class BoardGameModel:
         if player not in self._captured_pieces:
             return PlaceFeedbackInfo.NO_PLAYER_PLAYED
 
-        # no piece exists in src Location
+        # player has 0 of a selected piece to place
         if self._captured_pieces[player].get(piece_kind, 0) == 0:
             return PlaceFeedbackInfo.NO_PIECE_PLACED
 
         # ---
 
         dest_piece: Piece | None = self._board.get_piece(dest)
-        # a piece can always be placed on an empty dest Location
+        # a piece can be placed on an empty dest location if no enemy protected piece can go to it
         if dest_piece is None:
+            for protected_pieces in self.protected_pieces.values():
+                for protected_piece in protected_pieces:
+                    if self.is_move_valid(protected_piece.location, dest, None):
+                        return PlaceFeedbackInfo.BLOCKS_PROTECTED_PIECE_MOVEMENT
+                    
             return PlaceFeedbackInfo.VALID
         # a piece cannot be placed on an occupied dest Location
         else:
@@ -657,13 +657,11 @@ class BoardGameModel:
         self,
         piece_kind: PieceKind,
         dest: Location,
-        player: Player,
-        *,
-        ignore_player_to_move: bool = False,
+        player: Player | None,
     ) -> bool:
         return (
             self.get_place_feedback_info(
-                piece_kind, dest, player, ignore_player_to_move=ignore_player_to_move
+                piece_kind, dest, player
             )
             == PlaceFeedbackInfo.VALID
         )

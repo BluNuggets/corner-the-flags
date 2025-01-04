@@ -13,6 +13,8 @@ from project_types import (
     BoardGamePiecePositions,
     MoveFeedback,
     MoveFeedbackInfo,
+    PlaceFeedback,
+    PlaceFeedbackInfo,
 )
 
 # --- MARK: Movement
@@ -73,6 +75,9 @@ class Piece(Protocol):
     @property
     def can_capture(self) -> bool: ...
 
+    @property
+    def destinations(self) -> set[Location]: ...
+
     def can_move(self, dest: Location) -> bool: ...
 
     def move(self, dest: Location): ...
@@ -106,6 +111,10 @@ class RegularPiece:
     @property
     def can_capture(self) -> bool:
         return self._can_capture
+
+    @property
+    def destinations(self) -> set[Location]:
+        return {self._location + delta for delta in self._movement.get_deltas()}
 
     def can_move(self, dest: Location) -> bool:
         return dest - self._location in self._movement.get_deltas()
@@ -145,6 +154,10 @@ class ProtectedPiece:
     @property
     def can_capture(self) -> bool:
         return self._can_capture
+
+    @property
+    def destinations(self) -> set[Location]:
+        return {self._location + delta for delta in self._movement.get_deltas()}
 
     def can_move(self, dest: Location) -> bool:
         return dest - self._location in self._movement.get_deltas()
@@ -312,7 +325,7 @@ class BoardGameModel:
     _player: Player
     # state
     _board: Board
-    _captured_pieces: dict[Player, list[PieceKind]]
+    _captured_pieces: dict[Player, dict[PieceKind, int]]
     _state: BoardGameFrozenGameState
     # non-state extras
     _board_setter: BoardSetter
@@ -321,9 +334,9 @@ class BoardGameModel:
     def setup_game(cls, player_id: PlayerId) -> BoardGameModel:
         MAX_MOVES: int = 3
         board: Board = Board(8, 8)
-        captured_pieces: dict[Player, list[PieceKind]] = {
-            Player.PLAYER_1: [],
-            Player.PLAYER_2: [],
+        captured_pieces: dict[Player, dict[PieceKind, int]] = {
+            Player.PLAYER_1: {},
+            Player.PLAYER_2: {},
         }
         state: BoardGameFrozenGameState = BoardGameFrozenGameState(
             _max_moves=MAX_MOVES, _player_to_move=Player.PLAYER_1, _turn=1, _move=1
@@ -342,7 +355,7 @@ class BoardGameModel:
         self,
         player_id: PlayerId,
         board: Board,
-        captured_pieces: dict[Player, list[PieceKind]],
+        captured_pieces: dict[Player, dict[PieceKind, int]],
         state: BoardGameFrozenGameState,
         piece_positions: PiecePositions,
         piece_factory: PieceFactory,
@@ -374,7 +387,7 @@ class BoardGameModel:
         return self._board
 
     @property
-    def captured_pieces(self) -> dict[Player, list[PieceKind]]:
+    def captured_pieces(self) -> dict[Player, dict[PieceKind, int]]:
         return self._captured_pieces
 
     @property
@@ -391,27 +404,50 @@ class BoardGameModel:
 
     @property
     def game_status(self) -> GameStatus:
-        if len(self.protected_pieces(Player.PLAYER_1)) > 0:
-            if len(self.protected_pieces(Player.PLAYER_2)):
-                return GameStatus.ONGOING
-            else:
-                return GameStatus.PLAYER_1_WIN
-        else:
-            if len(self.protected_pieces(Player.PLAYER_2)):
-                return GameStatus.PLAYER_2_WIN
-            else:
+        match (
+            self._can_any_protected_piece_move(Player.PLAYER_1),
+            self._can_any_protected_piece_move(Player.PLAYER_2),
+        ):
+            case False, False:
                 return GameStatus.DRAW
+            case False, True:
+                return GameStatus.PLAYER_2_WIN
+            case True, False:
+                return GameStatus.PLAYER_1_WIN
+            case True, True:
+                return GameStatus.ONGOING
 
-    def protected_pieces(self, player: Player) -> list[Piece]:
-        return [
-            piece for piece in self._board.pieces.values() if piece.player == player
-        ]
+    @property
+    def protected_pieces(self) -> dict[Player, list[Piece]]:
+        ret: dict[Player, list[Piece]] = {}
+
+        for piece in self._board.pieces.values():
+            if piece.player not in ret:
+                ret[piece.player] = []
+
+            if piece.is_protected:
+                ret[piece.player].append(piece)
+
+        return ret
+
+    def _can_any_protected_piece_move(self, player: Player) -> bool:
+        if player not in self.protected_pieces:
+            return False
+
+        for piece in self.protected_pieces[player]:
+            for dest in piece.destinations:
+                if self.is_move_valid(
+                    piece.location, dest, None
+                ):
+                    return True
+
+        return False
 
     def new_game(self) -> None:
         self._board_setter.setup_board(self._board)
         self._captured_pieces = {
-            Player.PLAYER_1: [],
-            Player.PLAYER_2: [],
+            Player.PLAYER_1: {},
+            Player.PLAYER_2: {},
         }
 
         self._state = replace(
@@ -440,10 +476,14 @@ class BoardGameModel:
                     self._state = replace(self._state, _player_to_move=Player.PLAYER_1)
 
     def get_move_feedback_info(
-        self, src: Location, dest: Location, player: Player
+        self,
+        src: Location,
+        dest: Location,
+        player: Player | None
     ) -> MoveFeedbackInfo:
         # not currently player's turn to move
-        if self._state.player_to_move != player:
+        # skip this condition if player is not specified (to check "hypothetical" moves)
+        if player is not None and self._state.player_to_move != player:
             return MoveFeedbackInfo.NOT_CURRENT_PLAYER
 
         # src Location does not exist in board
@@ -463,8 +503,8 @@ class BoardGameModel:
             return MoveFeedbackInfo.NO_PIECE_MOVED
 
         # piece in src Location does not belong to the player
-        # todo: uncomment if ready to test with 2 clients
-        if src_piece.player != player:
+        # skip this condition if player is not specified (to check "hypothetical" moves)
+        if player is not None and src_piece.player != player:
             return MoveFeedbackInfo.PIECE_DOES_NOT_BELONG_TO_PLAYER
 
         # piece in src Location cannot reach dest Location
@@ -473,8 +513,9 @@ class BoardGameModel:
 
         # ---
 
-        # a piece can always move to an empty dest Location
         dest_piece: Piece | None = self._board.get_piece(dest)
+
+        # a piece can always move to an empty dest Location
         if dest_piece is None:
             return MoveFeedbackInfo.VALID
 
@@ -485,11 +526,23 @@ class BoardGameModel:
         else:
             if dest_piece.is_protected:
                 return MoveFeedbackInfo.CAPTURES_PROTECTED_PIECE
+            elif not src_piece.can_capture:
+                return MoveFeedbackInfo.PIECE_CANNOT_CAPTURE
             else:
                 return MoveFeedbackInfo.VALID
 
-    def is_move_valid(self, src: Location, dest: Location, player: Player) -> bool:
-        return self.get_move_feedback_info(src, dest, player) == MoveFeedbackInfo.VALID
+    def is_move_valid(
+        self,
+        src: Location,
+        dest: Location,
+        player: Player | None
+    ) -> bool:
+        return (
+            self.get_move_feedback_info(
+                src, dest, player
+            )
+            == MoveFeedbackInfo.VALID
+        )
 
     def _make_valid_move_feedback(
         self, src: Location, dest: Location, player: Player
@@ -532,8 +585,15 @@ class BoardGameModel:
                     case Player.PLAYER_2:
                         receiving_player: Player = Player.PLAYER_1
 
-                self._captured_pieces[receiving_player].append(dest_piece.piece_kind)
+                # add piece to captured pieces
+                self._captured_pieces[receiving_player][dest_piece.piece_kind] = (
+                    self._captured_pieces[receiving_player].setdefault(
+                        dest_piece.piece_kind, 0
+                    )
+                    + 1
+                )
 
+                # remove captured piece from board
                 self._board.remove_piece(dest)
 
             # ---
@@ -548,6 +608,100 @@ class BoardGameModel:
             self._board.remove_piece(src)
 
             # ---
+
+            self.next_move()
+
+            return ret
+
+    def get_place_feedback_info(
+        self,
+        piece_kind: PieceKind,
+        dest: Location,
+        player: Player | None
+    ) -> PlaceFeedbackInfo:
+        # not currently player's turn to place
+        # skip this condition if player is not specified (to check "hypothetical" places)
+        if player is not None and self._state.player_to_move != player:
+            return PlaceFeedbackInfo.NOT_CURRENT_PLAYER
+
+        # dest Location does not exist in board
+        if not self._board.is_square_within_bounds(dest):
+            return PlaceFeedbackInfo.SQUARE_OUT_OF_BOUNDS
+
+        # ---
+
+        # player not in captured pieces dict (this should never happen)
+        if player not in self._captured_pieces:
+            return PlaceFeedbackInfo.NO_PLAYER_PLAYED
+
+        # player has 0 of a selected piece to place
+        if self._captured_pieces[player].get(piece_kind, 0) == 0:
+            return PlaceFeedbackInfo.NO_PIECE_PLACED
+
+        # ---
+
+        dest_piece: Piece | None = self._board.get_piece(dest)
+        # a piece can be placed on an empty dest location if no enemy protected piece can go to it
+        if dest_piece is None:
+            for protected_pieces in self.protected_pieces.values():
+                for protected_piece in protected_pieces:
+                    if self.is_move_valid(protected_piece.location, dest, None):
+                        return PlaceFeedbackInfo.BLOCKS_PROTECTED_PIECE_MOVEMENT
+                    
+            return PlaceFeedbackInfo.VALID
+        # a piece cannot be placed on an occupied dest Location
+        else:
+            return PlaceFeedbackInfo.CAPTURES_PIECE
+
+    def is_place_valid(
+        self,
+        piece_kind: PieceKind,
+        dest: Location,
+        player: Player | None,
+    ) -> bool:
+        return (
+            self.get_place_feedback_info(
+                piece_kind, dest, player
+            )
+            == PlaceFeedbackInfo.VALID
+        )
+
+    def _make_valid_place_feedback(
+        self, piece_kind: PieceKind, dest: Location, player: Player
+    ) -> PlaceFeedback:
+        return PlaceFeedback(
+            place_piece_kind=piece_kind,
+            place_dest=dest,
+            info=self.get_place_feedback_info(piece_kind, dest, player),
+        )
+
+    def _make_invalid_place_feedback(
+        self, piece_kind: PieceKind, dest: Location, player: Player
+    ) -> PlaceFeedback:
+        return PlaceFeedback(
+            place_piece_kind=piece_kind,
+            place_dest=dest,
+            info=self.get_place_feedback_info(piece_kind, dest, player),
+        )
+
+    def place_piece(
+        self, piece_kind: PieceKind, dest: Location, player: Player
+    ) -> PlaceFeedback:
+        if not self.is_place_valid(piece_kind, dest, player):
+            return self._make_invalid_place_feedback(piece_kind, dest, player)
+        else:
+            ret: PlaceFeedback = self._make_valid_place_feedback(
+                piece_kind, dest, player
+            )
+
+            # make new piece
+            new_piece: Piece = BoardGamePieceFactory.make(player, piece_kind, dest)
+
+            # remove piece from captured pieces
+            self._captured_pieces[player][piece_kind] -= 1
+
+            # add piece to board
+            self._board.add_piece(new_piece)
 
             self.next_move()
 

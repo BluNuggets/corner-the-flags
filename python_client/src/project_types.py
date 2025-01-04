@@ -1,5 +1,5 @@
 from __future__ import annotations
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol, TypedDict
@@ -29,7 +29,7 @@ class GameState(Protocol):
     def board(self) -> BoardData: ...
 
     @property
-    def captured_pieces(self) -> Mapping[Player, Sequence[PieceKind]]: ...
+    def captured_pieces(self) -> Mapping[Player, Mapping[PieceKind, int]]: ...
 
     @property
     def player_to_move(self) -> Player: ...
@@ -69,23 +69,49 @@ class Location:
     _row: int
     _column: int
 
+    def __add__(self, other: Location | tuple[int, int]) -> Location:
+        """Add value to a `Location()` instance. Value can be another `Location()` or a `tuple[int, int].`"""
+        if isinstance(other, Location):
+            return Location(self._row + other.row, self._column + other.column)
+        elif type(other) is tuple[int, int]:
+            return Location(self._row + other[0], self._column + other[1])
+        else:
+            raise TypeError('Error: Invalid type for __add__ with Location().')
+
     def __copy__(self) -> Location:
+        """Return a new `Location()` instance with the same values."""
         return Location(self._row, self._column)
 
     def __hash__(self) -> int:
-        """Hash a Location() instance by hashing a tuple[int,int] that contains the values of .row and .column"""
+        """Hash a `Location()` instance by hashing a `tuple[int, int]` that contains the values of `.row` and `.column`."""
         return hash((self._row, self._column))
 
-    def __sub__(self, other: Location) -> Location:
-        """Get the difference of two Location() instances"""
-        return Location(self._row - other.row, self._column - other.column)
+    def __rsub__(self, other: Location | tuple[int, int]) -> Location:
+        """Subtract value from a `Location()` instance. Value can be another `Location()` or a `tuple[int, int].`"""
+        if isinstance(other, Location):
+            return Location(other._row - self.row, other._column - self.column)
+        elif type(other) is tuple[int, int]:
+            return Location(other[0] - self._row, other[1] - self._column)
+        else:
+            raise TypeError('Error: Invalid type for __rsub__ with Location().')
+
+    def __sub__(self, other: Location | tuple[int, int]) -> Location:
+        """Decrease value by a `Location()` instance. Value can be another `Location()` or a `tuple[int, int].`"""
+        if isinstance(other, Location):
+            return Location(self._row - other.row, self._column - other.column)
+        elif type(other) is tuple[int, int]:
+            return Location(self._row - other[0], self._column - other[1])
+        else:
+            raise TypeError('Error: Invalid type for __sub__ with Location().')
 
     @property
     def row(self) -> int:
+        """Returns the row number of a `Location()` instance (1-indexed)."""
         return self._row
 
     @property
     def column(self) -> int:
+        """Returns the column number of a `Location()` instance (1-indexed)."""
         return self._column
 
 
@@ -127,13 +153,15 @@ class BoardGamePiecePositions:
         return {
             # Player 1
             Location(2, 1): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 2): (Player.PLAYER_1, PieceKind.PAWN),
+            Location(3, 2): (Player.PLAYER_1, PieceKind.PAWN),
             Location(2, 3): (Player.PLAYER_1, PieceKind.PAWN),
             Location(2, 4): (Player.PLAYER_1, PieceKind.PAWN),
             Location(2, 5): (Player.PLAYER_1, PieceKind.PAWN),
             Location(2, 6): (Player.PLAYER_1, PieceKind.PAWN),
             Location(2, 7): (Player.PLAYER_1, PieceKind.PAWN),
             Location(2, 8): (Player.PLAYER_1, PieceKind.PAWN),
+            Location(1, 3): (Player.PLAYER_1, PieceKind.LANCE),
+            Location(1, 2): (Player.PLAYER_1, PieceKind.LANCE),
             Location(1, 1): (Player.PLAYER_1, PieceKind.KING),
             # Player 2
             Location(7, 1): (Player.PLAYER_2, PieceKind.PAWN),
@@ -153,12 +181,13 @@ class BoardGamePiecePositions:
 
 class MoveFeedbackInfo(StrEnum):
     NOT_CURRENT_PLAYER = 'Not current player'
-    NO_PIECE_MOVED = 'No piece moved'
     SQUARE_OUT_OF_BOUNDS = 'Square out of bounds'
+    NO_PIECE_MOVED = 'No piece moved'
     PIECE_DOES_NOT_BELONG_TO_PLAYER = 'Piece does not belong to player'
     PIECE_CANNOT_REACH_SQUARE = 'Piece cannot reach square'
     CAPTURES_OWN_PIECE = 'Captures own piece'
     CAPTURES_PROTECTED_PIECE = 'Captures protected piece'
+    PIECE_CANNOT_CAPTURE = 'Piece cannot capture'
     VALID = 'Valid'
 
 
@@ -169,22 +198,41 @@ class MoveFeedback:
     info: MoveFeedbackInfo
 
 
+# --- MARK: PlaceFeedbackInfo
+
+
+class PlaceFeedbackInfo(StrEnum):
+    NOT_CURRENT_PLAYER = 'Not current player'
+    SQUARE_OUT_OF_BOUNDS = 'Square out of bounds'
+    NO_PLAYER_PLAYED = 'No player played'
+    NO_PIECE_PLACED = 'No piece placed'
+    BLOCKS_PROTECTED_PIECE_MOVEMENT = 'Blocks protected piece movement'
+    CAPTURES_PIECE = 'Captures a piece'
+    VALID = 'Valid'
+
+
+@dataclass(frozen=True)
+class PlaceFeedback:
+    place_piece_kind: PieceKind
+    place_dest: Location | None
+    info: PlaceFeedbackInfo
+
+
 # --- MARK: GameMessageDict
 
 
 class GameMessageDict(TypedDict, total=True):
     frame: int
     message_type: GameMessageType
-    message_content: MakeMoveGameMessageContentDict
+    message_content: GameMessageContentDict
 
 
 # --- MARK: GameMessageType
 
-# type JSONType = None | int | str | bool | list[JSONType] | dict[str, JSONType]
-
 
 class GameMessageType(StrEnum):
     MOVE = 'move'
+    PLACE = 'place'
     INVALID = 'invalid'
 
     @classmethod
@@ -200,7 +248,21 @@ class LocationDict(TypedDict):
     column: int
 
 
-class MakeMoveGameMessageContentDict(TypedDict):
-    src: LocationDict
-    dest: LocationDict
+class GameMessageContentDict(TypedDict, total=False):
     player: Player
+    move_src: LocationDict
+    move_dest: LocationDict
+    place_piece_kind: PieceKind
+    place_dest: LocationDict
+
+
+class MakeMoveGameMessageContentDict(GameMessageContentDict, total=False):
+    player: Player
+    move_src: LocationDict
+    move_dest: LocationDict
+
+
+class PlacePieceGameMessageContentDict(GameMessageContentDict, total=False):
+    player: Player
+    place_piece_kind: PieceKind
+    place_dest: LocationDict

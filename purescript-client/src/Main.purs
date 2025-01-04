@@ -374,7 +374,7 @@ initialState = do
     , pieces
     , capturedPieces: []
     , player: Player1
-    , currentPlayer: Player2
+    , currentPlayer: Player1
     , activePieceIndex: Nothing
     , activeCapturedPieceIndex: Nothing
     , capturedPanel: initializeCapturedPanel
@@ -477,23 +477,20 @@ onMouseDown _ { x, y } gameState =
       foldl checkClickButton state buttons
         # checkClickCapturedPieces
 
-  checkClickBoard :: GameState -> GameState
-  checkClickBoard state =
+  placeCapturedPiece :: Location -> Int -> GameState -> GameState
+  placeCapturedPiece clickLocation index state =
+    state
+
+  movePiece :: Location -> Int -> GameState -> GameState
+  movePiece clickLocation index state =
     let
-      clickLocation = case state.player of
-        Player1 -> posToLocation y x
-        Player2 -> mirrorLocation $ posToLocation y x
+      locationInBounds :: Location -> Boolean
+      locationInBounds location =
+        elem location.row (0 .. (rows - 1)) && elem location.col (0 .. (cols - 1))
 
-      onMovement :: Maybe (GameState)
-      onMovement = do
-        index <- state.activePieceIndex
+      mNewState = do
         piece <- state.pieces !! index
-
-        let
-          locationInBounds :: Location -> Boolean
-          locationInBounds location =
-            elem location.row (0 .. (rows - 1)) && elem location.col (0 .. (cols - 1))
-          possibleMovements = getAllMovements piece.info.movements piece.location # (filter locationInBounds)
+        possibleMovements <- pure $ getAllMovements piece.info.movements piece.location # (filter locationInBounds)
 
         if piece.location /= clickLocation && elem clickLocation possibleMovements then do
           piecesAfterMove <- updateAt index (piece { location = clickLocation }) state.pieces
@@ -518,21 +515,36 @@ onMouseDown _ { x, y } gameState =
             Nothing -> pure $ state { pieces = piecesAfterMove, activePieceIndex = Nothing }
         else pure $ state { activePieceIndex = Nothing }
     in
-      case onMovement of
-        Just newGameState -> newGameState
-        Nothing ->
-          let
-            foundPiece = getPieceAtLocation state.pieces clickLocation
-          in
-            case foundPiece of
-              Just piece ->
-                if isSamePlayer piece.player state.player then
-                  case getPieceIndex state.pieces piece of
-                    Just index -> state { activePieceIndex = Just index, activeCapturedPieceIndex = Nothing }
-                    Nothing -> state
-                else
-                  state
+      case mNewState of
+        Just newState -> newState
+        Nothing -> state
+
+  selectPiece :: Location -> GameState -> GameState
+  selectPiece clickLocation state =
+    let
+      foundPiece = getPieceAtLocation state.pieces clickLocation
+    in
+      case foundPiece of
+        Just piece ->
+          if isSamePlayer piece.player state.player then
+            case getPieceIndex state.pieces piece of
+              Just index -> state { activePieceIndex = Just index, activeCapturedPieceIndex = Nothing }
               Nothing -> state
+          else
+            state
+        Nothing -> state
+
+  checkClickBoard :: GameState -> GameState
+  checkClickBoard state =
+    let
+      clickLocation = case state.player of
+        Player1 -> posToLocation y x
+        Player2 -> mirrorLocation $ posToLocation y x
+    in
+      case state.activePieceIndex, state.activeCapturedPieceIndex of
+        Just index, Nothing -> movePiece clickLocation index state
+        Nothing, Just index -> placeCapturedPiece clickLocation index state
+        _, _ -> selectPiece clickLocation state
 
 onKeyDown :: (String -> Effect Unit) -> String -> GameState -> Effect GameState
 onKeyDown send key gameState = do

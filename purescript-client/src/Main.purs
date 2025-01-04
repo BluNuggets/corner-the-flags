@@ -267,7 +267,7 @@ onMouseDown send { x, y } gameState = do
                 }
             else pure gameState
           Nothing -> pure $ gameState { pieces = piecesAfterMove, activePieceIndex = Nothing }
-      else pure gameState
+      else pure $ gameState { activePieceIndex = Nothing }
 
   case onMovement of
     Just newGameState -> pure newGameState

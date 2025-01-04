@@ -5,7 +5,7 @@ import Prelude
 import CS150241Project.GameEngine (startNetworkGame)
 import CS150241Project.Graphics (clearCanvas, drawImageScaled, drawRect, drawRectOutline, drawText)
 import CS150241Project.Networking (Message, PlayerId(..))
-import Data.Array (deleteAt, elem, filter, find, length, slice, updateAt, zipWith, (!!), (..))
+import Data.Array (deleteAt, elem, filter, find, findIndex, length, slice, updateAt, zipWith, (!!), (..))
 import Data.Foldable (foldl)
 import Data.Int (toNumber, floor)
 import Data.Map as Map
@@ -150,7 +150,7 @@ initializeCapturedPanel =
               , height: tileHeight
               }
           )
-          (0 .. capturedPanel.maxCapturedPerPage)
+          (0 .. (capturedPanel.maxCapturedPerPage - 1))
 
     capturedPanelPageText :: Maybe Text
     capturedPanelPageText =
@@ -311,6 +311,7 @@ type GameState =
   , player :: PlayerId
   , currentPlayer :: PlayerId
   , activePieceIndex :: Maybe Int
+  , activeCapturedPieceIndex :: Maybe Int
   , capturedPanel :: CapturedPanel
   , lastReceivedMessage :: Maybe Message
   , debugString :: String
@@ -365,6 +366,7 @@ initialState = do
     , player: Player1
     , currentPlayer: Player1
     , activePieceIndex: Nothing
+    , activeCapturedPieceIndex: Nothing
     , capturedPanel: initializeCapturedPanel
     , lastReceivedMessage: Nothing
     , debugString: ""
@@ -372,7 +374,7 @@ initialState = do
 
 onTick :: (String -> Effect Unit) -> GameState -> Effect GameState
 onTick _ gameState = do
-  log $ gameState.debugString
+  log $ show $ gameState.activeCapturedPieceIndex
   -- log $ "Tick: " <> show gameState.tickCount
 
   {--
@@ -425,12 +427,41 @@ onMouseDown _ { x, y } gameState =
       buttonTop = button.y
       buttonBottom = button.y + button.height
 
+  checkClickCapturedPieces :: GameState -> GameState
+  checkClickCapturedPieces state =
+    let
+      isClickingCapturedPiece :: CapturedPieceSlot -> Boolean
+      isClickingCapturedPiece slot =
+        slotLeft <= nx
+          && nx <= slotRight
+          && slotTop <= ny
+          && ny <= slotBottom
+        where
+        slotLeft = slot.x
+        slotRight = slot.x + slot.width
+        slotTop = slot.y
+        slotBottom = slot.y + slot.height
+
+      pageOffset = state.capturedPanel.currentPage * state.capturedPanel.maxCapturedPerPage
+
+      mIndex =
+        map isClickingCapturedPiece state.capturedPanel.capturedPieceSlots
+          # findIndex (_ == true)
+    in
+      case mIndex of
+        Just index ->
+          case state.capturedPieces !! (pageOffset + index) of
+            Just _ -> state { activeCapturedPieceIndex = Just (pageOffset + index), activePieceIndex = Nothing }
+            Nothing -> state
+        Nothing -> state
+
   checkClickCapturedPanel :: GameState -> GameState
   checkClickCapturedPanel state =
     let
       buttons = state.capturedPanel.buttons
     in
       foldl checkClickButton state buttons
+        # checkClickCapturedPieces
 
   checkClickBoard :: GameState -> GameState
   checkClickBoard state =
@@ -481,7 +512,7 @@ onMouseDown _ { x, y } gameState =
               Just piece ->
                 if isSamePlayer piece.player state.player then
                   case getPieceIndex state.pieces piece of
-                    Just index -> state { activePieceIndex = Just index }
+                    Just index -> state { activePieceIndex = Just index, activeCapturedPieceIndex = Nothing }
                     Nothing -> state
                 else
                   state
@@ -522,7 +553,7 @@ onRender images ctx gameState = do
     renderGrid
     renderPieces gameState.pieces
     renderActivePiece gameState.pieces gameState.activePieceIndex
-    renderCapturedPanel gameState.capturedPanel gameState.capturedPieces
+    renderCapturedPanel gameState.capturedPanel gameState.capturedPieces gameState.activeCapturedPieceIndex
 
   renderTile :: Int -> Int -> Effect Unit
   renderTile r c =
@@ -610,6 +641,22 @@ onRender images ctx gameState = do
     in
       foldl (<>) (pure unit) $ zipWith renderCapturedPiece capturedPieceSlots pagedCapturedPieces
 
+  renderActiveCapturedPiece :: Array CapturedPieceSlot -> Maybe Int -> Int -> Int -> Effect Unit
+  renderActiveCapturedPiece slots mIndex page maxPerPage =
+    case mIndex of
+      Just index ->
+        let
+          pageIndex = index / maxPerPage
+          slotIndex = mod index maxPerPage
+        in
+          if page == pageIndex then
+            case slots !! slotIndex of
+              Just slot ->
+                drawRectOutline ctx { x: slot.x, y: slot.y, width: slot.width, height: slot.height, color: "white" }
+              Nothing -> pure unit
+          else pure unit
+      Nothing -> pure unit
+
   renderCapturedPanelButton :: Button -> Effect Unit
   renderCapturedPanelButton panelButton = do
     drawRect ctx
@@ -647,12 +694,13 @@ onRender images ctx gameState = do
           }
       Nothing -> pure unit
 
-  renderCapturedPanel :: CapturedPanel -> Array CapturedPiece -> Effect Unit
-  renderCapturedPanel capturedPanel capturedPieces = do
+  renderCapturedPanel :: CapturedPanel -> Array CapturedPiece -> Maybe Int -> Effect Unit
+  renderCapturedPanel capturedPanel capturedPieces activeCapturedPieceIndex = do
     drawRect ctx { x: capturedPanel.x, y: capturedPanel.y, width: capturedPanel.width, height: capturedPanel.height, color: capturedPanel.color }
     renderPageText capturedPanel.pageText capturedPanel.currentPage capturedPanel.currentPageCount
     renderCapturedPanelButtons capturedPanel.buttons
     renderCapturedPieces capturedPanel.capturedPieceSlots capturedPieces capturedPanel.currentPage
+    renderActiveCapturedPiece capturedPanel.capturedPieceSlots activeCapturedPieceIndex capturedPanel.currentPage capturedPanel.maxCapturedPerPage
 
 main :: Effect Unit
 main =

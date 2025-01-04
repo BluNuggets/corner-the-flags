@@ -604,21 +604,6 @@ onRender images ctx gameState = do
     in
       foldl (<>) (pure unit) $ zipWith renderCapturedPiece capturedPieceSlots pagedPlayerCapturedPieces
 
-  renderCapturedPanelText :: Text -> Effect Unit
-  renderCapturedPanelText panelText = do
-    drawText ctx
-      { x: panelText.x + panelText.width / 2.0
-      , y: panelText.y + panelText.height / 2.0 + (toNumber panelText.fontSize) / 2.0
-      , text: panelText.text
-      , color: panelText.textColor
-      , font: panelText.font
-      , size: panelText.fontSize
-      }
-
-  renderCapturedPanelTexts :: Array Text -> Effect Unit
-  renderCapturedPanelTexts panelTexts =
-    foldl (<>) (pure unit) $ renderCapturedPanelText <$> panelTexts
-
   renderCapturedPanelButton :: Button -> Effect Unit
   renderCapturedPanelButton panelButton = do
     drawRect ctx

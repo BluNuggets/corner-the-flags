@@ -373,7 +373,7 @@ initialState = do
     { tickCount: 0
     , pieces
     , capturedPieces: []
-    , player: Player2
+    , player: Player1
     , currentPlayer: Player2
     , activePieceIndex: Nothing
     , activeCapturedPieceIndex: Nothing
@@ -398,9 +398,13 @@ else
 
 onMouseDown :: (String -> Effect Unit) -> { x :: Int, y :: Int } -> GameState -> Effect GameState
 onMouseDown _ { x, y } gameState =
-  (pure gameState)
-    <#> checkClickCapturedPanel
-    <#> checkClickBoard
+  if isSamePlayer gameState.player gameState.currentPlayer then
+    (pure gameState)
+      <#> checkClickCapturedPanel
+      <#> checkClickBoard
+  else
+    (pure gameState)
+      <#> checkClickCapturedPanel
 
   where
   nx = toNumber x

@@ -666,6 +666,6 @@ main =
     , imagePaths:
         [ "assets/lui_wink_ed.jpg"
         , "assets/lui_sword.jpg"
-        , "assets/lui_sword.jpg"
+        , "assets/lui_bright.jpg"
         ]
     }

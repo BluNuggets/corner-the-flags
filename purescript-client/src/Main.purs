@@ -4,7 +4,7 @@ import Prelude
 
 import CS150241Project.GameEngine (startNetworkGame)
 import CS150241Project.Graphics (clearCanvas, drawImageScaled, drawRect, drawRectOutline, drawText)
-import CS150241Project.Networking (Message)
+import CS150241Project.Networking (Message, PlayerId(..))
 import Data.Array (deleteAt, elem, filter, find, length, slice, updateAt, zipWith, (!!), (..))
 import Data.Foldable (foldl)
 import Data.Int (toNumber, floor)
@@ -14,6 +14,15 @@ import Data.Number as Number
 import Effect (Effect)
 import Effect.Console (log)
 import Graphics.Canvas as Canvas
+
+-- This can't be a type-class due to the "Orphan Instance" error
+-- While I could have written a newtype, I just didn't feel it was worth the mess that comes with it
+isSamePlayer :: PlayerId -> PlayerId -> Boolean
+isSamePlayer a b =
+  case a, b of
+    Player1, Player1 -> true
+    Player2, Player2 -> true
+    _, _ -> false
 
 boardWidth :: Number
 boardWidth = 600.0
@@ -257,23 +266,22 @@ type PieceInfo =
 
 type Piece =
   { info :: PieceInfo
-  , player :: Int
+  , player :: PlayerId
   , location :: Location
   }
 
 type CapturedPiece =
   { info :: PieceInfo
-  , player :: Int
+  , player :: PlayerId
   }
 
-pawnInfo :: Int -> PieceInfo
+pawnInfo :: PlayerId -> PieceInfo
 pawnInfo player =
   let
     movements =
-      if player == 1 then
-        [ newLocation (-1) 0 ]
-      else
-        [ newLocation 1 0 ]
+      case player of
+        Player1 -> [ newLocation (-1) 0 ]
+        Player2 -> [ newLocation 1 0 ]
   in
     { pieceKind: Pawn
     , movements
@@ -300,8 +308,8 @@ type GameState =
   { tickCount :: Int
   , pieces :: Array Piece
   , capturedPieces :: Array CapturedPiece
-  , player :: Int
-  , currentPlayer :: Int
+  , player :: PlayerId
+  , currentPlayer :: PlayerId
   , activePieceIndex :: Maybe Int
   , capturedPanel :: CapturedPanel
   , lastReceivedMessage :: Maybe Message
@@ -311,14 +319,14 @@ type GameState =
 initialState :: Effect GameState
 initialState = do
   let
-    createPawn :: Int -> Location -> Piece
+    createPawn :: PlayerId -> Location -> Piece
     createPawn player location =
       { info: pawnInfo player
       , player
       , location
       }
 
-    createKing :: Int -> Location -> Piece
+    createKing :: PlayerId -> Location -> Piece
     createKing player location =
       { info: kingInfo
       , player
@@ -328,34 +336,34 @@ initialState = do
   pieces <- pure $
     [
       -- Player 1
-      createPawn 1 (newLocation 6 0)
-    , createPawn 1 (newLocation 6 1)
-    , createPawn 1 (newLocation 6 2)
-    , createPawn 1 (newLocation 6 3)
-    , createPawn 1 (newLocation 6 4)
-    , createPawn 1 (newLocation 6 5)
-    , createPawn 1 (newLocation 6 6)
-    , createPawn 1 (newLocation 6 7)
-    , createKing 1 (newLocation 7 7)
+      createPawn Player1 (newLocation 6 0)
+    , createPawn Player1 (newLocation 6 1)
+    , createPawn Player1 (newLocation 6 2)
+    , createPawn Player1 (newLocation 6 3)
+    , createPawn Player1 (newLocation 6 4)
+    , createPawn Player1 (newLocation 6 5)
+    , createPawn Player1 (newLocation 6 6)
+    , createPawn Player1 (newLocation 6 7)
+    , createKing Player1 (newLocation 7 7)
     ,
       -- Player 2
-      createPawn 2 (newLocation 1 0)
-    , createPawn 2 (newLocation 1 1)
-    , createPawn 2 (newLocation 1 2)
-    , createPawn 2 (newLocation 1 3)
-    , createPawn 2 (newLocation 1 4)
-    , createPawn 2 (newLocation 1 5)
-    , createPawn 2 (newLocation 1 6)
-    , createPawn 2 (newLocation 1 7)
-    , createKing 2 (newLocation 0 0)
+      createPawn Player2 (newLocation 1 0)
+    , createPawn Player2 (newLocation 1 1)
+    , createPawn Player2 (newLocation 1 2)
+    , createPawn Player2 (newLocation 1 3)
+    , createPawn Player2 (newLocation 1 4)
+    , createPawn Player2 (newLocation 1 5)
+    , createPawn Player2 (newLocation 1 6)
+    , createPawn Player2 (newLocation 1 7)
+    , createKing Player2 (newLocation 0 0)
     ]
 
   pure
     { tickCount: 0
     , pieces
     , capturedPieces: []
-    , player: 1
-    , currentPlayer: 1
+    , player: Player1
+    , currentPlayer: Player1
     , activePieceIndex: Nothing
     , capturedPanel: initializeCapturedPanel
     , lastReceivedMessage: Nothing
@@ -444,13 +452,13 @@ onMouseDown _ { x, y } gameState =
           piecesAfterMove <- updateAt index (piece { location = clickLocation }) state.pieces
           case getPieceAtLocation state.pieces clickLocation of
             Just destPiece -> do
-              if not (piece.info.isProtected || destPiece.info.isProtected || destPiece.player == state.currentPlayer) then do
+              if not (piece.info.isProtected || destPiece.info.isProtected || isSamePlayer destPiece.player state.currentPlayer) then do
                 capturedIndex <- getPieceIndex state.pieces destPiece
                 piecesAfterCapture <- deleteAt capturedIndex piecesAfterMove
 
                 let
                   newCapturedPieces = state.capturedPieces <> [ { info: destPiece.info, player: state.currentPlayer } ]
-                  newCount = length $ filter (\cp -> cp.player == state.player) newCapturedPieces
+                  newCount = length newCapturedPieces
                   newPageCount = 1 + (newCount - 1) / state.capturedPanel.maxCapturedPerPage
 
                 pure $ state
@@ -471,7 +479,7 @@ onMouseDown _ { x, y } gameState =
           in
             case foundPiece of
               Just piece ->
-                if piece.player == state.player then
+                if isSamePlayer piece.player state.player then
                   case getPieceIndex state.pieces piece of
                     Just index -> state { activePieceIndex = Just index }
                     Nothing -> state
@@ -514,7 +522,7 @@ onRender images ctx gameState = do
     renderGrid
     renderPieces gameState.pieces
     renderActivePiece gameState.pieces gameState.activePieceIndex
-    renderCapturedPanel gameState.capturedPanel gameState.capturedPieces gameState.player
+    renderCapturedPanel gameState.capturedPanel gameState.capturedPieces
 
   renderTile :: Int -> Int -> Effect Unit
   renderTile r c =
@@ -593,16 +601,14 @@ onRender images ctx gameState = do
         Nothing -> pure unit
         Just img -> drawImageScaled ctx img { x: slot.x, y: slot.y, width: slot.width, height: slot.height }
 
-  renderCapturedPieces :: Array CapturedPieceSlot -> Array CapturedPiece -> Int -> Int -> Effect Unit
-  renderCapturedPieces capturedPieceSlots capturedPieces player page =
+  renderCapturedPieces :: Array CapturedPieceSlot -> Array CapturedPiece -> Int -> Effect Unit
+  renderCapturedPieces capturedPieceSlots capturedPieces page =
     let
-      playerCapturedPieces = filter (\cp -> cp.player == player) capturedPieces
-
       pageStart = page * maxCapturedPerPage
       pageEnd = pageStart + maxCapturedPerPage
-      pagedPlayerCapturedPieces = slice pageStart pageEnd playerCapturedPieces
+      pagedCapturedPieces = slice pageStart pageEnd capturedPieces
     in
-      foldl (<>) (pure unit) $ zipWith renderCapturedPiece capturedPieceSlots pagedPlayerCapturedPieces
+      foldl (<>) (pure unit) $ zipWith renderCapturedPiece capturedPieceSlots pagedCapturedPieces
 
   renderCapturedPanelButton :: Button -> Effect Unit
   renderCapturedPanelButton panelButton = do
@@ -641,12 +647,12 @@ onRender images ctx gameState = do
           }
       Nothing -> pure unit
 
-  renderCapturedPanel :: CapturedPanel -> Array CapturedPiece -> Int -> Effect Unit
-  renderCapturedPanel capturedPanel capturedPieces player = do
+  renderCapturedPanel :: CapturedPanel -> Array CapturedPiece -> Effect Unit
+  renderCapturedPanel capturedPanel capturedPieces = do
     drawRect ctx { x: capturedPanel.x, y: capturedPanel.y, width: capturedPanel.width, height: capturedPanel.height, color: capturedPanel.color }
     renderPageText capturedPanel.pageText capturedPanel.currentPage capturedPanel.currentPageCount
     renderCapturedPanelButtons capturedPanel.buttons
-    renderCapturedPieces capturedPanel.capturedPieceSlots capturedPieces player capturedPanel.currentPage
+    renderCapturedPieces capturedPanel.capturedPieceSlots capturedPieces capturedPanel.currentPage
 
 main :: Effect Unit
 main =

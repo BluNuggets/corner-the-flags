@@ -15,15 +15,6 @@ import Effect (Effect)
 import Effect.Console (log)
 import Graphics.Canvas as Canvas
 
--- This can't be a type-class due to the "Orphan Instance" error
--- While I could have written a newtype, I just didn't feel it was worth the mess that comes with it
-isSamePlayer :: PlayerId -> PlayerId -> Boolean
-isSamePlayer a b =
-  case a, b of
-    Player1, Player1 -> true
-    Player2, Player2 -> true
-    _, _ -> false
-
 boardWidth :: Number
 boardWidth = 600.0
 
@@ -62,6 +53,20 @@ tileHeight = Number.floor $ boardHeight / (toNumber rows)
 
 fps :: Int
 fps = 60
+
+-- Helper Funtions
+
+-- This can't be a type-class due to the "Orphan Instance" error
+-- While I could have written a newtype, I just didn't feel it was worth the mess that comes with it
+isSamePlayer :: PlayerId -> PlayerId -> Boolean
+isSamePlayer a b =
+  case a, b of
+    Player1, Player1 -> true
+    Player2, Player2 -> true
+    _, _ -> false
+
+mirror :: forall a. Ring a => a -> a -> a -> a
+mirror bottom top x = top - (x - bottom)
 
 -- Captured Panel UI Definitions
 type CapturedPanel =

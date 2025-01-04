@@ -5,7 +5,7 @@ import Prelude
 import CS150241Project.GameEngine (startNetworkGame)
 import CS150241Project.Graphics (clearCanvas, drawImageScaled, drawRect, drawRectOutline, drawText)
 import CS150241Project.Networking (Message)
-import Data.Array (updateAt, deleteAt, (!!), (..), elem, find, filter)
+import Data.Array (updateAt, deleteAt, (!!), (..), elem, find, filter, slice, zipWith)
 import Data.Foldable (foldl)
 import Data.Int (toNumber, floor)
 import Data.Map as Map
@@ -15,11 +15,29 @@ import Effect (Effect)
 import Effect.Console (log)
 import Graphics.Canvas as Canvas
 
+boardWidth :: Number
+boardWidth = 600.0
+
+boardHeight :: Number
+boardHeight = 600.0
+
+capturedPanelWidth :: Number
+capturedPanelWidth = 150.0
+
+capturedPanelHeight :: Number
+capturedPanelHeight = boardHeight
+
 width :: Number
-width = 600.0
+width = boardWidth + capturedPanelWidth
 
 height :: Number
-height = 600.0
+height = max boardHeight capturedPanelHeight
+
+capturedPieceGap :: Number
+capturedPieceGap = 10.0
+
+maxCapturedPerPage :: Int
+maxCapturedPerPage = 4
 
 cols :: Int
 cols = 8
@@ -28,10 +46,10 @@ rows :: Int
 rows = 8
 
 tileWidth :: Number
-tileWidth = Number.floor $ width / (toNumber cols)
+tileWidth = Number.floor $ boardWidth / (toNumber cols)
 
 tileHeight :: Number
-tileHeight = Number.floor $ height / (toNumber rows)
+tileHeight = Number.floor $ boardHeight / (toNumber rows)
 
 fps :: Int
 fps = 60
@@ -143,6 +161,7 @@ type GameState =
   { tickCount :: Int
   , pieces :: Array Piece
   , capturedPieces :: Array CapturedPiece
+  , capturedPiecesPage :: Int
   , player :: Int
   , currentPlayer :: Int
   , activePieceIndex :: Maybe Int
@@ -194,6 +213,7 @@ initialState = do
     { tickCount: 0
     , pieces
     , capturedPieces: []
+    , capturedPiecesPage: 0
     , player: 1
     , currentPlayer: 1
     , activePieceIndex: Nothing
@@ -298,6 +318,7 @@ onRender images ctx gameState = do
     renderGrid
     renderPieces gameState.pieces
     renderActivePiece gameState.pieces gameState.activePieceIndex
+    renderCapturedPanel gameState.capturedPieces gameState.player gameState.capturedPiecesPage
 
   renderTile :: Int -> Int -> Effect Unit
   renderTile r c =
@@ -363,6 +384,40 @@ onRender images ctx gameState = do
               drawRectOutline ctx { x, y, width: tileWidth, height: tileHeight, color: "white" }
           Nothing -> pure unit
       Nothing -> pure unit
+
+  renderCapturedPiece :: Number -> Number -> CapturedPiece -> Effect Unit
+  renderCapturedPiece x y capturedPiece =
+    let
+      lookupResult = case capturedPiece.info.pieceKind of
+        King -> Map.lookup "assets/lui_wink_ed.jpg" images
+        Lance -> Map.lookup "assets/lui_bright.jpg" images
+        Pawn -> Map.lookup "assets/lui_sword.jpg" images
+    in
+      case lookupResult of
+        Nothing -> pure unit
+        Just img -> drawImageScaled ctx img { x, y, width: tileWidth, height: tileHeight }
+
+  renderCapturedPieces :: Array CapturedPiece -> Int -> Int -> Effect Unit
+  renderCapturedPieces capturedPieces player page =
+    let
+      playerCapturedPieces = filter (\cp -> cp.player == player) capturedPieces
+      boxWidth = tileWidth
+      boxHeight = (tileHeight * (toNumber maxCapturedPerPage)) + (capturedPieceGap * (toNumber $ maxCapturedPerPage - 1))
+      boxX = boardWidth + (capturedPanelWidth / 2.0) - (boxWidth / 2.0)
+      boxY = (capturedPanelHeight / 2.0) - (boxHeight / 2.0)
+
+      pageStart = page * maxCapturedPerPage
+      pageEnd = pageStart + maxCapturedPerPage
+      playerCapturedPiecesPage = slice pageStart pageEnd playerCapturedPieces
+
+      ys = map ((+) boxY) $ map ((*) (tileHeight + capturedPieceGap)) (map toNumber (0 .. (maxCapturedPerPage - 1)))
+    in
+      foldl (<>) (pure unit) $ zipWith (renderCapturedPiece boxX) ys playerCapturedPiecesPage
+
+  renderCapturedPanel :: Array CapturedPiece -> Int -> Int -> Effect Unit
+  renderCapturedPanel capturedPieces player page = do
+    drawRect ctx { x: boardWidth, y: 0.0, width: capturedPanelWidth, height: capturedPanelHeight, color: "orange" }
+    renderCapturedPieces capturedPieces player page
 
 main :: Effect Unit
 main =

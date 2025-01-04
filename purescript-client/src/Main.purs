@@ -5,7 +5,7 @@ import Prelude
 import CS150241Project.GameEngine (startNetworkGame)
 import CS150241Project.Graphics (clearCanvas, drawImageScaled, drawRect, drawRectOutline, drawText)
 import CS150241Project.Networking (Message)
-import Data.Array (updateAt, deleteAt, (!!), (..), elem, find, filter, slice, zipWith)
+import Data.Array (deleteAt, elem, filter, find, length, slice, updateAt, zipWith, (!!), (..))
 import Data.Foldable (foldl)
 import Data.Int (toNumber, floor)
 import Data.Map as Map
@@ -64,8 +64,10 @@ type CapturedPanel =
   , slotGap :: Number
   , capturedPieceSlots :: Array CapturedPieceSlot
   , buttons :: Array Button
+  , pageText :: Maybe Text
   , maxCapturedPerPage :: Int
   , currentPage :: Int
+  , currentPageCount :: Int
   }
 
 type CapturedPieceSlot =
@@ -74,6 +76,22 @@ type CapturedPieceSlot =
   , width :: Number
   , height :: Number
   }
+
+type Text =
+  { x :: Number
+  , y :: Number
+  , width :: Number
+  , height :: Number
+  , text :: String
+  , textColor :: String
+  , font :: String
+  , fontSize :: Int
+  }
+
+-- Note: Button onClick handling is weird due to compiler limitations on circular/self-referential typing
+data ButtonActions
+  = PreviousPage
+  | NextPage
 
 type Button =
   { x :: Number
@@ -84,6 +102,7 @@ type Button =
   , textColor :: String
   , font :: String
   , fontSize :: Int
+  , onClickAction :: ButtonActions
   }
 
 initializeCapturedPanel :: CapturedPanel
@@ -99,8 +118,10 @@ initializeCapturedPanel =
       , slotGap: 10.0
       , capturedPieceSlots: []
       , buttons: []
+      , pageText: Nothing
       , maxCapturedPerPage: 4
       , currentPage: 0
+      , currentPageCount: 1
       }
 
     capturedPieceSlots :: Array CapturedPieceSlot
@@ -122,34 +143,54 @@ initializeCapturedPanel =
           )
           (0 .. capturedPanel.maxCapturedPerPage)
 
+    capturedPanelPageText :: Maybe Text
+    capturedPanelPageText =
+      let
+        textWidth = capturedPanel.width
+        fontSize = 14
+        textHeight = toNumber fontSize
+      in
+        Just
+          { x: capturedPanel.x
+          , y: 580.0
+          , width: textWidth
+          , height: textHeight
+          , text: "Page 1 of 1"
+          , textColor: "black"
+          , font: "arial"
+          , fontSize
+          }
+
     capturedPanelButtons :: Array Button
     capturedPanelButtons =
       let
         buttonWidth = capturedPanel.width / 2.0
         fontSize = 14
-        buttonHeight = toNumber fontSize
+        buttonHeight = 2.0 * toNumber fontSize
       in
-        [ { x: capturedPanel.x + (buttonWidth / 2.0)
-          , y: capturedPanel.height - buttonHeight
+        [ { x: capturedPanel.x
+          , y: 550.0
           , width: buttonWidth
           , height: buttonHeight
           , text: "<<< Prev"
-          , textColor: "white"
+          , textColor: "black"
           , font: "arial"
           , fontSize
+          , onClickAction: PreviousPage
           }
-        , { x: capturedPanel.x + buttonWidth + (buttonWidth / 2.0)
-          , y: capturedPanel.height - buttonHeight
+        , { x: capturedPanel.x + buttonWidth
+          , y: 550.0
           , width: buttonWidth
           , height: buttonHeight
           , text: "Next >>>"
-          , textColor: "white"
+          , textColor: "black"
           , font: "arial"
           , fontSize
+          , onClickAction: NextPage
           }
         ]
   in
-    capturedPanel { capturedPieceSlots = capturedPieceSlots, buttons = capturedPanelButtons }
+    capturedPanel { capturedPieceSlots = capturedPieceSlots, pageText = capturedPanelPageText, buttons = capturedPanelButtons }
 
 -- Board Definitions
 data PieceKind
@@ -259,12 +300,12 @@ type GameState =
   { tickCount :: Int
   , pieces :: Array Piece
   , capturedPieces :: Array CapturedPiece
-  , capturedPiecesPage :: Int
   , player :: Int
   , currentPlayer :: Int
   , activePieceIndex :: Maybe Int
   , capturedPanel :: CapturedPanel
   , lastReceivedMessage :: Maybe Message
+  , debugString :: String
   }
 
 initialState :: Effect GameState
@@ -313,16 +354,17 @@ initialState = do
     { tickCount: 0
     , pieces
     , capturedPieces: []
-    , capturedPiecesPage: 0
     , player: 1
     , currentPlayer: 1
     , activePieceIndex: Nothing
     , capturedPanel: initializeCapturedPanel
     , lastReceivedMessage: Nothing
+    , debugString: ""
     }
 
 onTick :: (String -> Effect Unit) -> GameState -> Effect GameState
-onTick send gameState = do
+onTick _ gameState = do
+  log $ gameState.debugString
   -- log $ "Tick: " <> show gameState.tickCount
 
   {--
@@ -335,54 +377,107 @@ else
   pure $ gameState { tickCount = gameState.tickCount + 1 }
 
 onMouseDown :: (String -> Effect Unit) -> { x :: Int, y :: Int } -> GameState -> Effect GameState
-onMouseDown send { x, y } gameState = do
-  send $ show x <> "," <> show y
-  log $ show y <> "," <> show x
+onMouseDown _ { x, y } gameState =
+  (pure gameState)
+    <#> checkClickCapturedPanel
+    <#> checkClickBoard
 
-  clickLocation <- pure $ posToLocation y x
+  where
+  nx = toNumber x
+  ny = toNumber y
 
-  let
-    onMovement :: Maybe (GameState)
-    onMovement = do
-      index <- gameState.activePieceIndex
-      piece <- gameState.pieces !! index
+  checkClickButton :: GameState -> Button -> GameState
+  checkClickButton state button' =
+    if isClickingButton button' then
+      case button'.onClickAction of
+        PreviousPage ->
+          let
+            newPage = state.capturedPanel.currentPage - 1
+            clampedNewPage = clamp 0 (state.capturedPanel.currentPageCount - 1) newPage
+          in
+            state { capturedPanel { currentPage = clampedNewPage } }
+        NextPage ->
+          let
+            newPage = state.capturedPanel.currentPage + 1
+            clampedNewPage = clamp 0 (state.capturedPanel.currentPageCount - 1) newPage
+          in
+            state { capturedPanel { currentPage = clampedNewPage } }
+    else
+      state
+    where
+    isClickingButton :: Button -> Boolean
+    isClickingButton button =
+      buttonLeft <= nx
+        && nx <= buttonRight
+        && buttonTop <= ny
+        && ny <= buttonBottom
+      where
+      buttonLeft = button.x
+      buttonRight = button.x + button.width
+      buttonTop = button.y
+      buttonBottom = button.y + button.height
 
-      let
-        locationInBounds :: Location -> Boolean
-        locationInBounds location =
-          elem location.row (0 .. (rows - 1)) && elem location.col (0 .. (cols - 1))
-        possibleMovements = getAllMovements piece.info.movements piece.location # (filter locationInBounds)
+  checkClickCapturedPanel :: GameState -> GameState
+  checkClickCapturedPanel state =
+    let
+      buttons = state.capturedPanel.buttons
+    in
+      foldl checkClickButton state buttons
 
-      if piece.location /= clickLocation && elem clickLocation possibleMovements then do
-        piecesAfterMove <- updateAt index (piece { location = clickLocation }) gameState.pieces
-        case getPieceAtLocation gameState.pieces clickLocation of
-          Just destPiece -> do
-            if not (piece.info.isProtected || destPiece.info.isProtected || destPiece.player == gameState.currentPlayer) then do
-              capturedIndex <- getPieceIndex gameState.pieces destPiece
-              piecesAfterCapture <- deleteAt capturedIndex piecesAfterMove
+  checkClickBoard :: GameState -> GameState
+  checkClickBoard state =
+    let
+      clickLocation = posToLocation y x
 
-              pure $ gameState
-                { pieces = piecesAfterCapture
-                , capturedPieces = gameState.capturedPieces <> [ { info: destPiece.info, player: gameState.currentPlayer } ]
-                , activePieceIndex = Nothing
-                }
-            else pure $ gameState { activePieceIndex = Nothing }
-          Nothing -> pure $ gameState { pieces = piecesAfterMove, activePieceIndex = Nothing }
-      else pure $ gameState { activePieceIndex = Nothing }
+      onMovement :: Maybe (GameState)
+      onMovement = do
+        index <- state.activePieceIndex
+        piece <- state.pieces !! index
 
-  case onMovement of
-    Just newGameState -> pure newGameState
-    Nothing -> do
-      foundPiece <- pure $ getPieceAtLocation gameState.pieces clickLocation
-      case foundPiece of
-        Just piece ->
-          if piece.player == gameState.player then
-            case getPieceIndex gameState.pieces piece of
-              Just index -> pure $ gameState { activePieceIndex = Just index }
-              Nothing -> pure gameState
-          else
-            pure gameState
-        Nothing -> pure gameState
+        let
+          locationInBounds :: Location -> Boolean
+          locationInBounds location =
+            elem location.row (0 .. (rows - 1)) && elem location.col (0 .. (cols - 1))
+          possibleMovements = getAllMovements piece.info.movements piece.location # (filter locationInBounds)
+
+        if piece.location /= clickLocation && elem clickLocation possibleMovements then do
+          piecesAfterMove <- updateAt index (piece { location = clickLocation }) state.pieces
+          case getPieceAtLocation state.pieces clickLocation of
+            Just destPiece -> do
+              if not (piece.info.isProtected || destPiece.info.isProtected || destPiece.player == state.currentPlayer) then do
+                capturedIndex <- getPieceIndex state.pieces destPiece
+                piecesAfterCapture <- deleteAt capturedIndex piecesAfterMove
+
+                let
+                  newCapturedPieces = state.capturedPieces <> [ { info: destPiece.info, player: state.currentPlayer } ]
+                  newCount = length $ filter (\cp -> cp.player == state.player) newCapturedPieces
+                  newPageCount = 1 + (newCount - 1) / state.capturedPanel.maxCapturedPerPage
+
+                pure $ state
+                  { pieces = piecesAfterCapture
+                  , capturedPieces = state.capturedPieces <> [ { info: destPiece.info, player: state.currentPlayer } ]
+                  , activePieceIndex = Nothing
+                  , capturedPanel { currentPageCount = newPageCount }
+                  }
+              else pure $ state { activePieceIndex = Nothing }
+            Nothing -> pure $ state { pieces = piecesAfterMove, activePieceIndex = Nothing }
+        else pure $ state { activePieceIndex = Nothing }
+    in
+      case onMovement of
+        Just newGameState -> newGameState
+        Nothing ->
+          let
+            foundPiece = getPieceAtLocation state.pieces clickLocation
+          in
+            case foundPiece of
+              Just piece ->
+                if piece.player == state.player then
+                  case getPieceIndex state.pieces piece of
+                    Just index -> state { activePieceIndex = Just index }
+                    Nothing -> state
+                else
+                  state
+              Nothing -> state
 
 onKeyDown :: (String -> Effect Unit) -> String -> GameState -> Effect GameState
 onKeyDown send key gameState = do
@@ -509,11 +604,34 @@ onRender images ctx gameState = do
     in
       foldl (<>) (pure unit) $ zipWith renderCapturedPiece capturedPieceSlots pagedPlayerCapturedPieces
 
-  renderCapturedPanelButton :: Button -> Effect Unit
-  renderCapturedPanelButton panelButton =
+  renderCapturedPanelText :: Text -> Effect Unit
+  renderCapturedPanelText panelText = do
     drawText ctx
+      { x: panelText.x + panelText.width / 2.0
+      , y: panelText.y + panelText.height / 2.0 + (toNumber panelText.fontSize) / 2.0
+      , text: panelText.text
+      , color: panelText.textColor
+      , font: panelText.font
+      , size: panelText.fontSize
+      }
+
+  renderCapturedPanelTexts :: Array Text -> Effect Unit
+  renderCapturedPanelTexts panelTexts =
+    foldl (<>) (pure unit) $ renderCapturedPanelText <$> panelTexts
+
+  renderCapturedPanelButton :: Button -> Effect Unit
+  renderCapturedPanelButton panelButton = do
+    drawRect ctx
       { x: panelButton.x
       , y: panelButton.y
+      , width: panelButton.width
+      , height: panelButton.height
+      , color: "red"
+      }
+
+    drawText ctx
+      { x: panelButton.x + panelButton.width / 2.0
+      , y: panelButton.y + panelButton.height / 2.0 + (toNumber panelButton.fontSize) / 2.0
       , text: panelButton.text
       , color: panelButton.textColor
       , font: panelButton.font
@@ -524,9 +642,24 @@ onRender images ctx gameState = do
   renderCapturedPanelButtons panelButtons =
     foldl (<>) (pure unit) $ renderCapturedPanelButton <$> panelButtons
 
+  renderPageText :: Maybe Text -> Int -> Int -> Effect Unit
+  renderPageText mPageText page pageCount =
+    case mPageText of
+      Just pageText ->
+        drawText ctx
+          { x: pageText.x + pageText.width / 2.0
+          , y: pageText.y + pageText.height / 2.0 + (toNumber pageText.fontSize) / 2.0
+          , text: "Page " <> show (page + 1) <> " of " <> show pageCount
+          , color: pageText.textColor
+          , font: pageText.font
+          , size: pageText.fontSize
+          }
+      Nothing -> pure unit
+
   renderCapturedPanel :: CapturedPanel -> Array CapturedPiece -> Int -> Effect Unit
   renderCapturedPanel capturedPanel capturedPieces player = do
     drawRect ctx { x: capturedPanel.x, y: capturedPanel.y, width: capturedPanel.width, height: capturedPanel.height, color: capturedPanel.color }
+    renderPageText capturedPanel.pageText capturedPanel.currentPage capturedPanel.currentPageCount
     renderCapturedPanelButtons capturedPanel.buttons
     renderCapturedPieces capturedPanel.capturedPieceSlots capturedPieces player capturedPanel.currentPage
 

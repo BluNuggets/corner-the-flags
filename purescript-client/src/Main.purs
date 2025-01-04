@@ -223,6 +223,12 @@ newLocation row col =
   , col
   }
 
+mirrorLocation :: Location -> Location
+mirrorLocation location =
+  { row: mirror 0 (rows - 1) location.row
+  , col: mirror 0 (cols - 1) location.col
+  }
+
 posToLocation :: Int -> Int -> Location
 posToLocation y x =
   let
@@ -283,10 +289,9 @@ type CapturedPiece =
 pawnInfo :: PlayerId -> PieceInfo
 pawnInfo player =
   let
-    movements =
-      case player of
-        Player1 -> [ newLocation (-1) 0 ]
-        Player2 -> [ newLocation 1 0 ]
+    movements = case player of
+      Player1 -> [ newLocation (-1) 0 ]
+      Player2 -> [ newLocation 1 0 ]
   in
     { pieceKind: Pawn
     , movements
@@ -350,7 +355,7 @@ initialState = do
     , createPawn Player1 (newLocation 6 5)
     , createPawn Player1 (newLocation 6 6)
     , createPawn Player1 (newLocation 6 7)
-    , createKing Player1 (newLocation 7 7)
+    , createKing Player1 (newLocation 7 0)
     ,
       -- Player 2
       createPawn Player2 (newLocation 1 0)
@@ -368,8 +373,8 @@ initialState = do
     { tickCount: 0
     , pieces
     , capturedPieces: []
-    , player: Player1
-    , currentPlayer: Player1
+    , player: Player2
+    , currentPlayer: Player2
     , activePieceIndex: Nothing
     , activeCapturedPieceIndex: Nothing
     , capturedPanel: initializeCapturedPanel
@@ -471,7 +476,9 @@ onMouseDown _ { x, y } gameState =
   checkClickBoard :: GameState -> GameState
   checkClickBoard state =
     let
-      clickLocation = posToLocation y x
+      clickLocation = case state.player of
+        Player1 -> posToLocation y x
+        Player2 -> mirrorLocation $ posToLocation y x
 
       onMovement :: Maybe (GameState)
       onMovement = do
@@ -555,9 +562,7 @@ onRender images ctx gameState = do
   renderGame :: Effect Unit
   renderGame = do
     clearCanvas ctx { color: "black", width, height }
-    renderGrid
-    renderPieces gameState.pieces
-    renderActivePiece gameState.pieces gameState.activePieceIndex
+    renderBoard gameState.player gameState.pieces gameState.activePieceIndex
     renderCapturedPanel gameState.capturedPanel gameState.capturedPieces gameState.activeCapturedPieceIndex
 
   renderTile :: Int -> Int -> Effect Unit
@@ -591,10 +596,12 @@ onRender images ctx gameState = do
     in
       foldl (<>) (pure unit) $ renderRow <$> rs
 
-  renderPiece :: Piece -> Effect Unit
-  renderPiece piece =
+  renderPiece :: PlayerId -> Piece -> Effect Unit
+  renderPiece player piece =
     let
-      location = piece.location
+      location = case player of
+        Player1 -> piece.location
+        Player2 -> mirrorLocation piece.location
       x = tileWidth * (toNumber location.col)
       y = tileHeight * (toNumber location.row)
 
@@ -607,23 +614,32 @@ onRender images ctx gameState = do
         Nothing -> pure unit
         Just img -> drawImageScaled ctx img { x, y, width: tileWidth, height: tileHeight }
 
-  renderPieces :: Array Piece -> Effect Unit
-  renderPieces pieces =
-    foldl (<>) (pure unit) $ renderPiece <$> pieces
+  renderPieces :: PlayerId -> Array Piece -> Effect Unit
+  renderPieces player pieces =
+    foldl (<>) (pure unit) $ (renderPiece player) <$> pieces
 
-  renderActivePiece :: Array Piece -> Maybe Int -> Effect Unit
-  renderActivePiece pieces mIndex =
+  renderActivePiece :: PlayerId -> Array Piece -> Maybe Int -> Effect Unit
+  renderActivePiece player pieces mIndex =
     case mIndex of
       Just index ->
         case pieces !! index of
           Just activePiece ->
             let
-              x = tileWidth * (toNumber activePiece.location.col)
-              y = tileHeight * (toNumber activePiece.location.row)
+              location = case player of
+                Player1 -> activePiece.location
+                Player2 -> mirrorLocation activePiece.location
+              x = tileHeight * (toNumber location.col)
+              y = tileHeight * (toNumber location.row)
             in
               drawRectOutline ctx { x, y, width: tileWidth, height: tileHeight, color: "white" }
           Nothing -> pure unit
       Nothing -> pure unit
+
+  renderBoard :: PlayerId -> Array Piece -> Maybe Int -> Effect Unit
+  renderBoard player pieces mIndex = do
+    renderGrid
+    renderPieces player pieces
+    renderActivePiece player pieces mIndex
 
   renderCapturedPiece :: CapturedPieceSlot -> CapturedPiece -> Effect Unit
   renderCapturedPiece slot capturedPiece =

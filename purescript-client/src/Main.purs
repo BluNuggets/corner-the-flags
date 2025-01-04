@@ -54,6 +54,104 @@ tileHeight = Number.floor $ boardHeight / (toNumber rows)
 fps :: Int
 fps = 60
 
+-- Captured Panel UI Definitions
+type CapturedPanel =
+  { x :: Number
+  , y :: Number
+  , width :: Number
+  , height :: Number
+  , color :: String
+  , slotGap :: Number
+  , capturedPieceSlots :: Array CapturedPieceSlot
+  , buttons :: Array Button
+  , maxCapturedPerPage :: Int
+  , currentPage :: Int
+  }
+
+type CapturedPieceSlot =
+  { x :: Number
+  , y :: Number
+  , width :: Number
+  , height :: Number
+  }
+
+type Button =
+  { x :: Number
+  , y :: Number
+  , width :: Number
+  , height :: Number
+  , text :: String
+  , textColor :: String
+  , font :: String
+  , fontSize :: Int
+  }
+
+initializeCapturedPanel :: CapturedPanel
+initializeCapturedPanel =
+  let
+    capturedPanel :: CapturedPanel
+    capturedPanel =
+      { x: boardWidth
+      , y: 0.0
+      , width: capturedPanelWidth
+      , height: capturedPanelHeight
+      , color: "orange"
+      , slotGap: 10.0
+      , capturedPieceSlots: []
+      , buttons: []
+      , maxCapturedPerPage: 4
+      , currentPage: 0
+      }
+
+    capturedPieceSlots :: Array CapturedPieceSlot
+    capturedPieceSlots =
+      let
+        boxWidth = tileWidth
+        boxHeight = (tileHeight * (toNumber capturedPanel.maxCapturedPerPage))
+          + (capturedPanel.slotGap * (toNumber $ capturedPanel.maxCapturedPerPage - 1))
+        boxX = boardWidth + (capturedPanel.width / 2.0) - (boxWidth / 2.0)
+        boxY = (capturedPanel.height / 2.0) - (boxHeight / 2.0)
+      in
+        map
+          ( \index ->
+              { x: boxX
+              , y: boxY + ((tileHeight + capturedPanel.slotGap) * (toNumber index))
+              , width: tileWidth
+              , height: tileHeight
+              }
+          )
+          (0 .. capturedPanel.maxCapturedPerPage)
+
+    capturedPanelButtons :: Array Button
+    capturedPanelButtons =
+      let
+        buttonWidth = capturedPanel.width / 2.0
+        fontSize = 14
+        buttonHeight = toNumber fontSize
+      in
+        [ { x: capturedPanel.x + (buttonWidth / 2.0)
+          , y: capturedPanel.height - buttonHeight
+          , width: buttonWidth
+          , height: buttonHeight
+          , text: "<<< Prev"
+          , textColor: "white"
+          , font: "arial"
+          , fontSize
+          }
+        , { x: capturedPanel.x + buttonWidth + (buttonWidth / 2.0)
+          , y: capturedPanel.height - buttonHeight
+          , width: buttonWidth
+          , height: buttonHeight
+          , text: "Next >>>"
+          , textColor: "white"
+          , font: "arial"
+          , fontSize
+          }
+        ]
+  in
+    capturedPanel { capturedPieceSlots = capturedPieceSlots, buttons = capturedPanelButtons }
+
+-- Board Definitions
 data PieceKind
   = King
   | Lance
@@ -165,6 +263,7 @@ type GameState =
   , player :: Int
   , currentPlayer :: Int
   , activePieceIndex :: Maybe Int
+  , capturedPanel :: CapturedPanel
   , lastReceivedMessage :: Maybe Message
   }
 
@@ -209,6 +308,7 @@ initialState = do
     , createPawn 2 (newLocation 1 7)
     , createKing 2 (newLocation 0 0)
     ]
+
   pure
     { tickCount: 0
     , pieces
@@ -217,6 +317,7 @@ initialState = do
     , player: 1
     , currentPlayer: 1
     , activePieceIndex: Nothing
+    , capturedPanel: initializeCapturedPanel
     , lastReceivedMessage: Nothing
     }
 
@@ -249,7 +350,7 @@ onMouseDown send { x, y } gameState = do
       let
         locationInBounds :: Location -> Boolean
         locationInBounds location =
-          elem location.row (0 .. rows) && elem location.col (0 .. cols)
+          elem location.row (0 .. (rows - 1)) && elem location.col (0 .. (cols - 1))
         possibleMovements = getAllMovements piece.info.movements piece.location # (filter locationInBounds)
 
       if piece.location /= clickLocation && elem clickLocation possibleMovements then do
@@ -265,7 +366,7 @@ onMouseDown send { x, y } gameState = do
                 , capturedPieces = gameState.capturedPieces <> [ { info: destPiece.info, player: gameState.currentPlayer } ]
                 , activePieceIndex = Nothing
                 }
-            else pure gameState
+            else pure $ gameState { activePieceIndex = Nothing }
           Nothing -> pure $ gameState { pieces = piecesAfterMove, activePieceIndex = Nothing }
       else pure $ gameState { activePieceIndex = Nothing }
 
@@ -318,7 +419,7 @@ onRender images ctx gameState = do
     renderGrid
     renderPieces gameState.pieces
     renderActivePiece gameState.pieces gameState.activePieceIndex
-    renderCapturedPanel gameState.capturedPieces gameState.player gameState.capturedPiecesPage
+    renderCapturedPanel gameState.capturedPanel gameState.capturedPieces gameState.player
 
   renderTile :: Int -> Int -> Effect Unit
   renderTile r c =
@@ -340,14 +441,14 @@ onRender images ctx gameState = do
   renderRow :: Int -> Effect Unit
   renderRow row =
     let
-      cs = (0 .. cols)
+      cs = (0 .. (cols - 1))
     in
       foldl (<>) (pure unit) $ (renderTile row) <$> cs
 
   renderGrid :: Effect Unit
   renderGrid =
     let
-      rs = (0 .. rows)
+      rs = (0 .. (rows - 1))
     in
       foldl (<>) (pure unit) $ renderRow <$> rs
 
@@ -385,8 +486,8 @@ onRender images ctx gameState = do
           Nothing -> pure unit
       Nothing -> pure unit
 
-  renderCapturedPiece :: Number -> Number -> CapturedPiece -> Effect Unit
-  renderCapturedPiece x y capturedPiece =
+  renderCapturedPiece :: CapturedPieceSlot -> CapturedPiece -> Effect Unit
+  renderCapturedPiece slot capturedPiece =
     let
       lookupResult = case capturedPiece.info.pieceKind of
         King -> Map.lookup "assets/lui_wink_ed.jpg" images
@@ -395,29 +496,39 @@ onRender images ctx gameState = do
     in
       case lookupResult of
         Nothing -> pure unit
-        Just img -> drawImageScaled ctx img { x, y, width: tileWidth, height: tileHeight }
+        Just img -> drawImageScaled ctx img { x: slot.x, y: slot.y, width: slot.width, height: slot.height }
 
-  renderCapturedPieces :: Array CapturedPiece -> Int -> Int -> Effect Unit
-  renderCapturedPieces capturedPieces player page =
+  renderCapturedPieces :: Array CapturedPieceSlot -> Array CapturedPiece -> Int -> Int -> Effect Unit
+  renderCapturedPieces capturedPieceSlots capturedPieces player page =
     let
       playerCapturedPieces = filter (\cp -> cp.player == player) capturedPieces
-      boxWidth = tileWidth
-      boxHeight = (tileHeight * (toNumber maxCapturedPerPage)) + (capturedPieceGap * (toNumber $ maxCapturedPerPage - 1))
-      boxX = boardWidth + (capturedPanelWidth / 2.0) - (boxWidth / 2.0)
-      boxY = (capturedPanelHeight / 2.0) - (boxHeight / 2.0)
 
       pageStart = page * maxCapturedPerPage
       pageEnd = pageStart + maxCapturedPerPage
-      playerCapturedPiecesPage = slice pageStart pageEnd playerCapturedPieces
-
-      ys = map ((+) boxY) $ map ((*) (tileHeight + capturedPieceGap)) (map toNumber (0 .. (maxCapturedPerPage - 1)))
+      pagedPlayerCapturedPieces = slice pageStart pageEnd playerCapturedPieces
     in
-      foldl (<>) (pure unit) $ zipWith (renderCapturedPiece boxX) ys playerCapturedPiecesPage
+      foldl (<>) (pure unit) $ zipWith renderCapturedPiece capturedPieceSlots pagedPlayerCapturedPieces
 
-  renderCapturedPanel :: Array CapturedPiece -> Int -> Int -> Effect Unit
-  renderCapturedPanel capturedPieces player page = do
-    drawRect ctx { x: boardWidth, y: 0.0, width: capturedPanelWidth, height: capturedPanelHeight, color: "orange" }
-    renderCapturedPieces capturedPieces player page
+  renderCapturedPanelButton :: Button -> Effect Unit
+  renderCapturedPanelButton panelButton =
+    drawText ctx
+      { x: panelButton.x
+      , y: panelButton.y
+      , text: panelButton.text
+      , color: panelButton.textColor
+      , font: panelButton.font
+      , size: panelButton.fontSize
+      }
+
+  renderCapturedPanelButtons :: Array Button -> Effect Unit
+  renderCapturedPanelButtons panelButtons =
+    foldl (<>) (pure unit) $ renderCapturedPanelButton <$> panelButtons
+
+  renderCapturedPanel :: CapturedPanel -> Array CapturedPiece -> Int -> Effect Unit
+  renderCapturedPanel capturedPanel capturedPieces player = do
+    drawRect ctx { x: capturedPanel.x, y: capturedPanel.y, width: capturedPanel.width, height: capturedPanel.height, color: capturedPanel.color }
+    renderCapturedPanelButtons capturedPanel.buttons
+    renderCapturedPieces capturedPanel.capturedPieceSlots capturedPieces player capturedPanel.currentPage
 
 main :: Effect Unit
 main =

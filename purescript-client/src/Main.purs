@@ -28,7 +28,7 @@ cols :: Int
 cols = 8
 
 rows :: Int
-rows = 20
+rows = 8
 
 --might replace tileWidth and tileHeight with tileLength or tileSide 
 -- Currently, this means that each side of the board is AT LEAST 600.00
@@ -467,12 +467,15 @@ onMouseDown _ { x, y } gameState =
         map isClickingCapturedPiece state.capturedPanel.capturedPieceSlots
           # findIndex (_ == true)
     in
-      case mIndex of
-        Just index ->
-          case state.capturedPieces !! (pageOffset + index) of
-            Just _ -> state { activeCapturedPieceIndex = Just (pageOffset + index), activePieceIndex = Nothing }
-            Nothing -> state
-        Nothing -> state
+      if mIndex /= state.activeCapturedPieceIndex then
+        case mIndex of
+          Just index ->
+            case state.capturedPieces !! (pageOffset + index) of
+              Just _ -> state { activeCapturedPieceIndex = Just (pageOffset + index), activePieceIndex = Nothing }
+              Nothing -> state
+          Nothing -> state
+      else
+        state { activeCapturedPieceIndex = Nothing }
 
   checkClickCapturedPanel :: GameState -> GameState
   checkClickCapturedPanel state =
@@ -510,6 +513,10 @@ onMouseDown _ { x, y } gameState =
             , activeCapturedPieceIndex = Nothing
             , capturedPanel { currentPageCount = newPageCount }
             }
+        else if locationInBounds clickLocation then
+          -- If clicking on the board but not on a placable tile, 
+          -- deselect then attempt to select a new piece
+          pure $ selectPiece clickLocation (state { activeCapturedPieceIndex = Nothing })
         else
           pure state
     in

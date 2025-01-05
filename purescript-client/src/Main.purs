@@ -124,16 +124,21 @@ type Button =
   , onClickAction :: ButtonActions
   }
 
-initializeCapturedPanel :: CapturedPanel
-initializeCapturedPanel =
+initializeCapturedPanel :: PlayerId -> CapturedPanel
+initializeCapturedPanel player =
   let
+    -- PlayerId is just needed for coloring the panel
+    panelColor = case player of
+      Player1 -> "sandybrown"
+      Player2 -> "deepskyblue"
+
     capturedPanel :: CapturedPanel
     capturedPanel =
       { x: boardWidth
       , y: 0.0
       , width: capturedPanelWidth
       , height: capturedPanelHeight
-      , color: "orange"
+      , color: panelColor
       , slotGap: 10.0
       , capturedPieceSlots: []
       , buttons: []
@@ -390,7 +395,7 @@ initialState = do
     , currentPlayer: Player2
     , activePieceIndex: Nothing
     , activeCapturedPieceIndex: Nothing
-    , capturedPanel: initializeCapturedPanel
+    , capturedPanel: initializeCapturedPanel Player2
     , lastReceivedMessage: Nothing
     , debugString: ""
     }
@@ -754,14 +759,6 @@ onRender images ctx gameState = do
 
   renderCapturedPanelButton :: Button -> Effect Unit
   renderCapturedPanelButton panelButton = do
-    drawRect ctx
-      { x: panelButton.x
-      , y: panelButton.y
-      , width: panelButton.width
-      , height: panelButton.height
-      , color: "red"
-      }
-
     drawText ctx
       { x: panelButton.x + panelButton.width / 2.0
       , y: panelButton.y + panelButton.height / 2.0 + (toNumber panelButton.fontSize) / 2.0

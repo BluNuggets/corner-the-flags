@@ -56,6 +56,9 @@ width = boardWidth + capturedPanelWidth
 height :: Number
 height = max boardHeight capturedPanelHeight
 
+actionsPerTurn :: Int
+actionsPerTurn = 3
+
 fps :: Int
 fps = 60
 
@@ -69,6 +72,12 @@ isSamePlayer a b =
     Player1, Player1 -> true
     Player2, Player2 -> true
     _, _ -> false
+
+getEnemyPlayer :: PlayerId -> PlayerId
+getEnemyPlayer player =
+  case player of
+    Player1 -> Player2
+    Player2 -> Player1
 
 mirror :: forall a. Ring a => a -> a -> a -> a
 mirror bottom top x = top - (x - bottom)
@@ -349,6 +358,8 @@ type GameState =
   , capturedPieces :: Array CapturedPiece
   , player :: PlayerId
   , currentPlayer :: PlayerId
+  , turn :: Int
+  , action :: Int
   , activePieceIndex :: Maybe Int
   , activeCapturedPieceIndex :: Maybe Int
   , capturedPanel :: CapturedPanel
@@ -405,6 +416,8 @@ initialState = do
     , capturedPieces: []
     , player: Player1
     , currentPlayer: Player1
+    , turn: 1
+    , action: 1
     , activePieceIndex: Nothing
     , activeCapturedPieceIndex: Nothing
     , capturedPanel: initializeCapturedPanel Player1
@@ -419,9 +432,7 @@ checkGameOver state =
     -- Brute force method
     protectedPieces = filter (_.info.isProtected) state.pieces
     player = state.player
-    enemyPlayer = case player of
-      Player1 -> Player2
-      Player2 -> Player1
+    enemyPlayer = getEnemyPlayer player
 
     playerProtectedPieces = filter (\p -> isSamePlayer player p.player) protectedPieces
     enemyProtectedPieces = filter (\p -> isSamePlayer enemyPlayer p.player) protectedPieces
@@ -451,7 +462,7 @@ checkGameOver state =
 
 onTick :: (String -> Effect Unit) -> GameState -> Effect GameState
 onTick _ gameState = do
-  log $ show $ gameState.debugString
+  log $ show $ "Turn: " <> show gameState.turn <> " | Action: " <> show gameState.action
   -- log $ "Tick: " <> show gameState.tickCount
 
   {--
@@ -552,6 +563,13 @@ onMouseDown _ { x, y } gameState =
       foldl checkClickButton state buttons
         # checkClickCapturedPieces
 
+  updateTurnActions :: GameState -> GameState
+  updateTurnActions state =
+    if state.action + 1 <= actionsPerTurn then
+      state { action = state.action + 1 }
+    else
+      state { turn = state.turn + 1, action = 1, currentPlayer = getEnemyPlayer state.player }
+
   placeCapturedPiece :: Location -> Int -> GameState -> GameState
   placeCapturedPiece clickLocation index state =
     let
@@ -577,12 +595,13 @@ onMouseDown _ { x, y } gameState =
             newPageCount = max 1 (1 + (newCount - 1) / state.capturedPanel.maxCapturedPerPage)
             newPage = min state.capturedPanel.currentPage (newPageCount - 1)
 
-          pure $ state
+          pure $ (updateTurnActions state)
             { pieces = newPieces
             , capturedPieces = newCapturedPieces
             , activeCapturedPieceIndex = Nothing
             , capturedPanel { currentPage = newPage, currentPageCount = newPageCount }
             }
+
         else if locationInBounds clickLocation then
           -- If clicking on the board but not on a placable tile, 
           -- deselect then attempt to select a new piece
@@ -614,14 +633,14 @@ onMouseDown _ { x, y } gameState =
                   newCount = length newCapturedPieces
                   newPageCount = 1 + (newCount - 1) / state.capturedPanel.maxCapturedPerPage
 
-                pure $ state
+                pure $ (updateTurnActions state)
                   { pieces = piecesAfterCapture
                   , capturedPieces = state.capturedPieces <> [ { info: destPiece.info, player: state.currentPlayer } ]
                   , activePieceIndex = Nothing
                   , capturedPanel { currentPageCount = newPageCount }
                   }
               else pure $ state { activePieceIndex = Nothing }
-            Nothing -> pure $ state { pieces = piecesAfterMove, activePieceIndex = Nothing }
+            Nothing -> pure $ (updateTurnActions state) { pieces = piecesAfterMove, activePieceIndex = Nothing }
         else pure $ state { activePieceIndex = Nothing }
     in
       case mNewState of

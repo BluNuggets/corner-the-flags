@@ -15,14 +15,23 @@ import Effect (Effect)
 import Effect.Console (log)
 import Graphics.Canvas as Canvas
 
-capturedPanelWidth :: Number
-capturedPanelWidth = max (tileLength + 20.0) 150.0
+cols :: Int
+cols = 8
+
+rows :: Int
+rows = 8
+
+actionsPerTurn :: Int
+actionsPerTurn = 3
 
 capturedPieceGap :: Number
 capturedPieceGap = 10.0
 
-maxCapturedPerPage :: Int
-maxCapturedPerPage = floor ((capturedPanelHeight - capturedPanelButtonOffset) / (tileLength + capturedPieceGap))
+minBoardLength :: Number
+minBoardLength = 600.00
+
+maxBoardLength :: Number
+maxBoardLength = 1000.00
 
 capturedPanelFontSize :: Int
 capturedPanelFontSize = 14
@@ -33,15 +42,14 @@ capturedPanelTextboxOffset = 20.0
 capturedPanelButtonOffset :: Number
 capturedPanelButtonOffset = 50.0
 
-cols :: Int
-cols = 2
-
-rows :: Int
-rows = 4
-
--- Currently, this means that each side of the board is AT LEAST 600.00
 tileLength :: Number
-tileLength = Number.floor $ min (600.00 / (toNumber $ min cols rows)) (1000.00 / (toNumber $ max cols rows)) 
+tileLength = Number.floor $ min (minBoardLength / (toNumber $ min cols rows)) (maxBoardLength / (toNumber $ max cols rows)) 
+
+capturedPanelWidth :: Number
+capturedPanelWidth = max (tileLength + 20.0) 150.0
+
+maxCapturedPerPage :: Int
+maxCapturedPerPage = floor ((capturedPanelHeight - capturedPanelButtonOffset) / (tileLength + capturedPieceGap))
 
 boardWidth :: Number
 boardWidth = Number.floor $ tileLength * (toNumber cols)
@@ -57,9 +65,6 @@ width = boardWidth + capturedPanelWidth
 
 height :: Number
 height = max boardHeight capturedPanelHeight
-
-actionsPerTurn :: Int
-actionsPerTurn = 100
 
 fps :: Int
 fps = 60
@@ -396,15 +401,15 @@ initialState = do
   pieces <- pure $
     [
       -- Player 1
-      createPawn Player1 (newLocation 2 0)
-    , createPawn Player1 (newLocation 2 1)
-    , createPawn Player1 (newLocation 2 2)
-    , createPawn Player1 (newLocation 2 3)
-    , createPawn Player1 (newLocation 2 4)
-    , createPawn Player1 (newLocation 2 5)
-    , createPawn Player1 (newLocation 2 6)
-    , createPawn Player1 (newLocation 2 7)
-    , createKing Player1 (newLocation 3 0)
+      createPawn Player1 (newLocation 6 0)
+    , createPawn Player1 (newLocation 6 1)
+    , createPawn Player1 (newLocation 6 2)
+    , createPawn Player1 (newLocation 6 3)
+    , createPawn Player1 (newLocation 6 4)
+    , createPawn Player1 (newLocation 6 5)
+    , createPawn Player1 (newLocation 6 6)
+    , createPawn Player1 (newLocation 6 7)
+    , createKing Player1 (newLocation 7 0)
     ,
       -- Player 2
       createPawn Player2 (newLocation 1 0)

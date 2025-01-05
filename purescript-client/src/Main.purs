@@ -240,6 +240,82 @@ derive instance Generic PieceKind _
 instance Show PieceKind where
   show = genericShow
 
+type PieceInfo =
+  { pieceKind :: PieceKind
+  , movements :: Array Location
+  , isProtected :: Boolean
+  }
+
+type Piece =
+  { info :: PieceInfo
+  , player :: PlayerId
+  , location :: Location
+  }
+
+type CapturedPiece =
+  { info :: PieceInfo
+  , player :: PlayerId
+  }
+
+-- Prefering this over `show` due to JSON parsing
+pieceKindToString :: PieceKind -> String
+pieceKindToString King = "King"
+pieceKindToString Lance = "Lance"
+pieceKindToString Pawn = "Pawn"
+
+pieceKindFromString :: String -> Maybe PieceKind
+pieceKindFromString "King" = Just King
+pieceKindFromString "Lance" = Just Lance
+pieceKindFromString "Pawn" = Just Pawn
+pieceKindFromString _ = Nothing
+
+class Pieceable k where
+  getPieceInfo :: k -> PieceInfo
+  createPiece :: k -> PlayerId -> Location -> Piece
+
+instance Pieceable PieceKind where
+  getPieceInfo King =
+    let
+      drs = ((-1) .. 1)
+      dcs = ((-1) .. 1)
+
+      movements =
+        map (\dr -> map (\dc -> newLocation dr dc) dcs) drs
+          # foldl (<>) []
+          # filter (_ /= newLocation 0 0)
+    in
+      { pieceKind: King
+      , movements
+      , isProtected: true
+      }
+  getPieceInfo Lance =
+    let
+      movements =
+        [ newLocation (-1) (-1)
+        , newLocation (-1) 1
+        , newLocation 1 (-1)
+        , newLocation 1 1
+        ]
+    in
+      { pieceKind: Lance
+      , movements
+      , isProtected: false
+      }
+  getPieceInfo Pawn =
+    let
+      movements = [ newLocation (-1) 0 ]
+    in
+      { pieceKind: Pawn
+      , movements
+      , isProtected: false
+      }
+
+  createPiece pk player location =
+    { info: getPieceInfo pk
+    , player
+    , location
+    }
+
 type Location =
   { row :: Int
   , col :: Int
@@ -311,49 +387,6 @@ getAllMovements player location deltas =
     Player1 -> deltas <#> (add location)
     Player2 -> deltas <#> mirrorDelta <#> (add location)
 
-type PieceInfo =
-  { pieceKind :: PieceKind
-  , movements :: Array Location
-  , isProtected :: Boolean
-  }
-
-type Piece =
-  { info :: PieceInfo
-  , player :: PlayerId
-  , location :: Location
-  }
-
-type CapturedPiece =
-  { info :: PieceInfo
-  , player :: PlayerId
-  }
-
-pawnInfo :: PieceInfo
-pawnInfo =
-  let
-    movements = [ newLocation (-1) 0 ]
-  in
-    { pieceKind: Pawn
-    , movements
-    , isProtected: false
-    }
-
-kingInfo :: PieceInfo
-kingInfo =
-  let
-    drs = ((-1) .. 1)
-    dcs = ((-1) .. 1)
-
-    movements =
-      map (\dr -> map (\dc -> newLocation dr dc) dcs) drs
-        # foldl (<>) []
-        # filter (_ /= newLocation 0 0)
-  in
-    { pieceKind: King
-    , movements
-    , isProtected: true
-    }
-
 -- Game Over Definitions
 data GameOverState
   = Winner PlayerId
@@ -386,7 +419,7 @@ type PlacePayload =
   , message_type :: String
   , message_content ::
       { place_piece_kind :: String
-      , move_dest :: Location
+      , place_dest :: Location
       }
   }
 
@@ -395,8 +428,8 @@ createPlacePayload state pieceKind destLocation =
   { frame: state.tickCount
   , message_type: "place"
   , message_content:
-      { place_piece_kind: show pieceKind
-      , move_dest: destLocation
+      { place_piece_kind: pieceKindToString pieceKind
+      , place_dest: destLocation
       }
   }
 
@@ -439,44 +472,29 @@ updateTurnActions state =
 
 initialState :: Effect GameState
 initialState = do
-  let
-    createPawn :: PlayerId -> Location -> Piece
-    createPawn player location =
-      { info: pawnInfo
-      , player
-      , location
-      }
-
-    createKing :: PlayerId -> Location -> Piece
-    createKing player location =
-      { info: kingInfo
-      , player
-      , location
-      }
-
   pieces <- pure $
     [
       -- Player 1
-      createPawn Player1 (newLocation 6 0)
-    , createPawn Player1 (newLocation 6 1)
-    , createPawn Player1 (newLocation 6 2)
-    , createPawn Player1 (newLocation 6 3)
-    , createPawn Player1 (newLocation 6 4)
-    , createPawn Player1 (newLocation 6 5)
-    , createPawn Player1 (newLocation 6 6)
-    , createPawn Player1 (newLocation 6 7)
-    , createKing Player1 (newLocation 7 0)
+      createPiece Pawn Player1 (newLocation 6 0)
+    , createPiece Pawn Player1 (newLocation 6 1)
+    , createPiece Pawn Player1 (newLocation 6 2)
+    , createPiece Pawn Player1 (newLocation 6 3)
+    , createPiece Pawn Player1 (newLocation 6 4)
+    , createPiece Pawn Player1 (newLocation 6 5)
+    , createPiece Pawn Player1 (newLocation 6 6)
+    , createPiece Pawn Player1 (newLocation 6 7)
+    , createPiece King Player1 (newLocation 7 0)
     ,
       -- Player 2
-      createPawn Player2 (newLocation 1 0)
-    , createPawn Player2 (newLocation 1 1)
-    , createPawn Player2 (newLocation 1 2)
-    , createPawn Player2 (newLocation 1 3)
-    , createPawn Player2 (newLocation 1 4)
-    , createPawn Player2 (newLocation 1 5)
-    , createPawn Player2 (newLocation 1 6)
-    , createPawn Player2 (newLocation 1 7)
-    , createKing Player2 (newLocation 0 0)
+      createPiece Pawn Player2 (newLocation 1 0)
+    , createPiece Pawn Player2 (newLocation 1 1)
+    , createPiece Pawn Player2 (newLocation 1 2)
+    , createPiece Pawn Player2 (newLocation 1 3)
+    , createPiece Pawn Player2 (newLocation 1 4)
+    , createPiece Pawn Player2 (newLocation 1 5)
+    , createPiece Pawn Player2 (newLocation 1 6)
+    , createPiece Pawn Player2 (newLocation 1 7)
+    , createPiece King Player2 (newLocation 0 0)
     ]
 
   pure
@@ -643,7 +661,8 @@ onMouseDown send { x, y } gameState =
     state <- eState
 
     let
-      mNewState = do
+      mResult :: Maybe { newState :: GameState, place_piece_kind :: Maybe PieceKind, place_dest :: Maybe Location }
+      mResult = do
         capturedPiece <- state.capturedPieces !! index
         -- Assuming that we also cannot place a piece 
         -- that blocks the movement of our own protected piece
@@ -659,27 +678,45 @@ onMouseDown send { x, y } gameState =
           newCapturedPieces <- deleteAt index state.capturedPieces
 
           let
-            newPieces = state.pieces <> [ { info: capturedPiece.info, player: capturedPiece.player, location: clickLocation } ]
+            newPieces = state.pieces <> [ createPiece capturedPiece.info.pieceKind capturedPiece.player clickLocation ]
             newCount = length newCapturedPieces
             newPageCount = max 1 (1 + (newCount - 1) / state.capturedPanel.maxCapturedPerPage)
             newPage = min state.capturedPanel.currentPage (newPageCount - 1)
 
-          pure $ (updateTurnActions state)
+          newState <- pure $ (updateTurnActions state)
             { pieces = newPieces
             , capturedPieces = newCapturedPieces
             , activeCapturedPieceIndex = Nothing
             , capturedPanel { currentPage = newPage, currentPageCount = newPageCount }
             }
 
+          Just
+            { newState: newState
+            , place_piece_kind: Just capturedPiece.info.pieceKind
+            , place_dest: Just clickLocation
+            }
         else if locationInBounds clickLocation then
           -- If clicking on the board but not on a placable tile, 
           -- deselect then attempt to select a new piece
-          pure $ selectPiece clickLocation (state { activeCapturedPieceIndex = Nothing })
+          Just
+            { newState: selectPiece clickLocation (state { activeCapturedPieceIndex = Nothing })
+            , place_piece_kind: Nothing
+            , place_dest: Nothing
+            }
         else
-          pure state
+          Just
+            { newState: state
+            , place_piece_kind: Nothing
+            , place_dest: Nothing
+            }
 
-    case mNewState of
-      Just newState -> pure newState
+    case mResult of
+      Just result ->
+        case result.place_piece_kind, result.place_dest of
+          Just kind, Just dest -> do
+            send $ JSON.writeJSON $ createPlacePayload result.newState kind dest
+            pure result.newState
+          _, _ -> pure result.newState
       Nothing -> pure state
 
   movePiece :: Location -> Int -> Effect GameState -> Effect GameState
@@ -836,13 +873,25 @@ onMessage _ message gameState = do
     case JSON.readJSON message.payload of
       Right (payload :: PlacePayload) ->
         if not (isSamePlayer message.playerId state.player) && payload.message_type == "place" then
-          handlePlaceMessage payload state
+          handlePlaceMessage payload message.playerId state
         else state
       _ -> state
 
-  handlePlaceMessage :: PlacePayload -> GameState -> GameState
-  handlePlaceMessage payload state =
-    state
+  handlePlaceMessage :: PlacePayload -> PlayerId -> GameState -> GameState
+  handlePlaceMessage payload player state =
+    let
+      { place_piece_kind, place_dest } = payload.message_content
+      dest = place_dest
+
+      newState = case pieceKindFromString place_piece_kind of
+        Just pieceKind ->
+          let
+            newPiece = createPiece pieceKind player dest
+          in
+            (updateTurnActions state) { pieces = state.pieces <> [ newPiece ] }
+        Nothing -> state
+    in
+      newState
 
   -- Not a reliable method of handling connections
   -- It would be better if I had direct access to the game engine methods

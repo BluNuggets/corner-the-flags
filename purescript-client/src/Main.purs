@@ -16,30 +16,32 @@ import Effect.Console (log)
 import Graphics.Canvas as Canvas
 
 capturedPanelWidth :: Number
-capturedPanelWidth = 150.0
+capturedPanelWidth = max (tileLength + 20.0) 150.0
 
 capturedPieceGap :: Number
 capturedPieceGap = 10.0
 
 maxCapturedPerPage :: Int
-maxCapturedPerPage = 4
+maxCapturedPerPage = floor ((capturedPanelHeight - capturedPanelButtonOffset) / (tileLength + capturedPieceGap))
+
+capturedPanelFontSize :: Int
+capturedPanelFontSize = 14
+
+capturedPanelTextboxOffset :: Number
+capturedPanelTextboxOffset = 20.0
+
+capturedPanelButtonOffset :: Number
+capturedPanelButtonOffset = 50.0
 
 cols :: Int
-cols = 8
+cols = 20
 
 rows :: Int
-rows = 8
+rows = 20
 
---might replace tileWidth and tileHeight with tileLength or tileSide 
 -- Currently, this means that each side of the board is AT LEAST 600.00
 tileLength :: Number
 tileLength = Number.floor $ 600.00 / (toNumber $ min cols rows)
-
-tileWidth :: Number
-tileWidth = Number.floor $ 600.00 / (toNumber $ min cols rows)
-
-tileHeight :: Number
-tileHeight = Number.floor $ 600.00 / (toNumber $ min cols rows)
 
 boardWidth :: Number
 boardWidth = Number.floor $ tileLength * (toNumber cols)
@@ -57,7 +59,7 @@ height :: Number
 height = max boardHeight capturedPanelHeight
 
 actionsPerTurn :: Int
-actionsPerTurn = 3
+actionsPerTurn = 100
 
 fps :: Int
 fps = 60
@@ -93,6 +95,9 @@ type CapturedPanel =
   , capturedPieceSlots :: Array CapturedPieceSlot
   , buttons :: Array Button
   , pageText :: Maybe Text
+  , fontSize :: Int
+  , textboxOffset :: Number
+  , buttonOffset :: Number
   , maxCapturedPerPage :: Int
   , currentPage :: Int
   , currentPageCount :: Int
@@ -148,11 +153,14 @@ initializeCapturedPanel player =
       , width: capturedPanelWidth
       , height: capturedPanelHeight
       , color: panelColor
-      , slotGap: 10.0
+      , slotGap: capturedPieceGap
       , capturedPieceSlots: []
       , buttons: []
       , pageText: Nothing
-      , maxCapturedPerPage: 4
+      , fontSize: capturedPanelFontSize
+      , textboxOffset: capturedPanelTextboxOffset
+      , buttonOffset: capturedPanelButtonOffset
+      , maxCapturedPerPage: maxCapturedPerPage
       , currentPage: 0
       , currentPageCount: 1
       }
@@ -160,18 +168,18 @@ initializeCapturedPanel player =
     capturedPieceSlots :: Array CapturedPieceSlot
     capturedPieceSlots =
       let
-        boxWidth = tileWidth
-        boxHeight = (tileHeight * (toNumber capturedPanel.maxCapturedPerPage))
+        boxWidth = tileLength
+        boxHeight = (tileLength * (toNumber capturedPanel.maxCapturedPerPage))
           + (capturedPanel.slotGap * (toNumber $ capturedPanel.maxCapturedPerPage - 1))
         boxX = boardWidth + (capturedPanel.width / 2.0) - (boxWidth / 2.0)
-        boxY = (capturedPanel.height / 2.0) - (boxHeight / 2.0)
+        boxY = ((capturedPanel.height - capturedPanel.buttonOffset) / 2.0) - (boxHeight / 2.0)
       in
         map
           ( \index ->
               { x: boxX
-              , y: boxY + ((tileHeight + capturedPanel.slotGap) * (toNumber index))
-              , width: tileWidth
-              , height: tileHeight
+              , y: boxY + ((tileLength + capturedPanel.slotGap) * (toNumber index))
+              , width: tileLength
+              , height: tileLength
               }
           )
           (0 .. (capturedPanel.maxCapturedPerPage - 1))
@@ -180,12 +188,12 @@ initializeCapturedPanel player =
     capturedPanelPageText =
       let
         textWidth = capturedPanel.width
-        fontSize = 14
+        fontSize = capturedPanel.fontSize
         textHeight = toNumber fontSize
       in
         Just
           { x: capturedPanel.x
-          , y: capturedPanel.height - 20.0
+          , y: capturedPanel.height - capturedPanel.textboxOffset
           , width: textWidth
           , height: textHeight
           , text: "Page 1 of 1"
@@ -198,11 +206,11 @@ initializeCapturedPanel player =
     capturedPanelButtons =
       let
         buttonWidth = capturedPanel.width / 2.0
-        fontSize = 14
+        fontSize = capturedPanel.fontSize
         buttonHeight = 2.0 * toNumber fontSize
       in
         [ { x: capturedPanel.x
-          , y: capturedPanel.height - 50.0
+          , y: capturedPanel.height - capturedPanel.buttonOffset
           , width: buttonWidth
           , height: buttonHeight
           , text: "<<< Prev"
@@ -212,7 +220,7 @@ initializeCapturedPanel player =
           , onClickAction: PreviousPage
           }
         , { x: capturedPanel.x + buttonWidth
-          , y: capturedPanel.height - 50.0
+          , y: capturedPanel.height - capturedPanel.buttonOffset
           , width: buttonWidth
           , height: buttonHeight
           , text: "Next >>>"
@@ -259,8 +267,8 @@ mirrorDelta location =
 posToLocation :: Int -> Int -> Location
 posToLocation y x =
   let
-    row = y / (floor tileWidth)
-    col = x / (floor tileHeight)
+    row = (y-10) / (floor tileLength)
+    col = (x-10) / (floor tileLength)
   in
     { row, col }
 
@@ -388,15 +396,15 @@ initialState = do
   pieces <- pure $
     [
       -- Player 1
-      createPawn Player1 (newLocation 6 0)
-    , createPawn Player1 (newLocation 6 1)
-    , createPawn Player1 (newLocation 6 2)
-    , createPawn Player1 (newLocation 6 3)
-    , createPawn Player1 (newLocation 6 4)
-    , createPawn Player1 (newLocation 6 5)
-    , createPawn Player1 (newLocation 6 6)
-    , createPawn Player1 (newLocation 6 7)
-    , createKing Player1 (newLocation 7 0)
+      createPawn Player1 (newLocation 2 0)
+    , createPawn Player1 (newLocation 2 1)
+    , createPawn Player1 (newLocation 2 2)
+    , createPawn Player1 (newLocation 2 3)
+    , createPawn Player1 (newLocation 2 4)
+    , createPawn Player1 (newLocation 2 5)
+    , createPawn Player1 (newLocation 2 6)
+    , createPawn Player1 (newLocation 2 7)
+    , createKing Player1 (newLocation 3 0)
     ,
       -- Player 2
       createPawn Player2 (newLocation 1 0)
@@ -720,10 +728,10 @@ onRender images ctx gameState = do
           "lightyellow"
     in
       drawRect ctx
-        { x: (toNumber c) * tileWidth
-        , y: (toNumber r) * tileHeight
-        , width: tileWidth
-        , height: tileHeight
+        { x: (toNumber c) * tileLength
+        , y: (toNumber r) * tileLength
+        , width: tileLength
+        , height: tileLength
         , color
         }
 
@@ -747,8 +755,8 @@ onRender images ctx gameState = do
       location = case player of
         Player1 -> piece.location
         Player2 -> mirrorLocation piece.location
-      x = tileWidth * (toNumber location.col)
-      y = tileHeight * (toNumber location.row)
+      x = tileLength * (toNumber location.col)
+      y = tileLength * (toNumber location.row)
 
       lookupResult = case piece.info.pieceKind of
         King -> Map.lookup "assets/lui_wink_ed.jpg" images
@@ -757,7 +765,7 @@ onRender images ctx gameState = do
     in
       case lookupResult of
         Nothing -> pure unit
-        Just img -> drawImageScaled ctx img { x, y, width: tileWidth, height: tileHeight }
+        Just img -> drawImageScaled ctx img { x, y, width: tileLength, height: tileLength }
 
   renderPieces :: PlayerId -> Array Piece -> Effect Unit
   renderPieces player pieces =
@@ -773,10 +781,10 @@ onRender images ctx gameState = do
               location = case player of
                 Player1 -> activePiece.location
                 Player2 -> mirrorLocation activePiece.location
-              x = tileHeight * (toNumber location.col)
-              y = tileHeight * (toNumber location.row)
+              x = tileLength * (toNumber location.col)
+              y = tileLength * (toNumber location.row)
             in
-              drawRectOutline ctx { x, y, width: tileWidth, height: tileHeight, color: "white" }
+              drawRectOutline ctx { x, y, width: tileLength, height: tileLength, color: "white" }
           Nothing -> pure unit
       Nothing -> pure unit
 

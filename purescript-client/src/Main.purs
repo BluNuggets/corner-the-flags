@@ -265,7 +265,9 @@ type CapturedPiece =
   , player :: PlayerId
   }
 
--- Prefering this over `show` due to JSON parsing
+-- Prefering this over `show` due to JSON parsing and flexibility
+-- Also not in the type-class due to issues with the `fromString` function
+-- Nonetheless, this still adheres to OCP as it is easily extendable
 pieceKindToString :: PieceKind -> String
 pieceKindToString King = "King"
 pieceKindToString Lance = "Lance"
@@ -561,19 +563,11 @@ onTick :: (String -> Effect Unit) -> GameState -> Effect GameState
 onTick send gameState = do
   log $ "Debug: " <> gameState.debugString
 
-  when (not gameState.sentPing) do
+  if (not gameState.sentPing) then do
     send $ JSON.writeJSON $ createPingPayload gameState
-
-  -- log $ "Tick: " <> show gameState.tickCount
-
-  {--
-if gameState.tickCount `mod` fps == 0 then do
-  y <- randomRange 0.0 height
-  send $ "Moved to (" <> show x <> ", " <> show y <> ")"
-  pure $ gameState { x = x, y = y, tickCount = gameState.tickCount + 1 }
-else
---}
-  pure $ gameState { tickCount = gameState.tickCount + 1, sentPing = true }
+    pure $ gameState { tickCount = gameState.tickCount + 1, sentPing = true }
+  else
+    pure $ gameState { tickCount = gameState.tickCount + 1 }
 
 onMouseDown :: (String -> Effect Unit) -> { x :: Int, y :: Int } -> GameState -> Effect GameState
 onMouseDown send { x, y } gameState =

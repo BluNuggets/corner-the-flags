@@ -520,12 +520,13 @@ onMouseDown _ { x, y } gameState =
             newPieces = state.pieces <> [ { info: capturedPiece.info, player: capturedPiece.player, location: clickLocation } ]
             newCount = length newCapturedPieces
             newPageCount = max 1 (1 + (newCount - 1) / state.capturedPanel.maxCapturedPerPage)
+            newPage = min state.capturedPanel.currentPage (newPageCount - 1)
 
           pure $ state
             { pieces = newPieces
             , capturedPieces = newCapturedPieces
             , activeCapturedPieceIndex = Nothing
-            , capturedPanel { currentPageCount = newPageCount }
+            , capturedPanel { currentPage = newPage, currentPageCount = newPageCount }
             }
         else if locationInBounds clickLocation then
           -- If clicking on the board but not on a placable tile, 

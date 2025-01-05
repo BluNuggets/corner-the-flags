@@ -279,9 +279,11 @@ pieceKindFromString "Lance" = Just Lance
 pieceKindFromString "Pawn" = Just Pawn
 pieceKindFromString _ = Nothing
 
+-- The Type Class is largely unneccessary, but it was added anyways
 class Pieceable k where
   getPieceInfo :: k -> PieceInfo
   createPiece :: k -> PlayerId -> Location -> Piece
+  getImagePath :: k -> PlayerId -> String
 
 instance Pieceable PieceKind where
   getPieceInfo King =
@@ -325,6 +327,11 @@ instance Pieceable PieceKind where
     , player
     , location
     }
+
+  -- This additionally allows separate images for different players
+  getImagePath King _ = "assets/lui_wink_ed.jpg"
+  getImagePath Lance _ = "assets/lui_bright.jpg"
+  getImagePath Pawn _ = "assets/lui_sword.jpg"
 
 type Location =
   { row :: Int
@@ -962,10 +969,7 @@ onRender images ctx gameState = do
       x = tileLength * (toNumber location.col)
       y = tileLength * (toNumber location.row)
 
-      lookupResult = case piece.info.pieceKind of
-        King -> Map.lookup "assets/lui_wink_ed.jpg" images
-        Lance -> Map.lookup "assets/lui_bright.jpg" images
-        Pawn -> Map.lookup "assets/lui_sword.jpg" images
+      lookupResult = Map.lookup (getImagePath piece.info.pieceKind piece.player) images
     in
       case lookupResult of
         Nothing -> pure unit
@@ -1001,10 +1005,7 @@ onRender images ctx gameState = do
   renderCapturedPiece :: CapturedPieceSlot -> CapturedPiece -> Effect Unit
   renderCapturedPiece slot capturedPiece =
     let
-      lookupResult = case capturedPiece.info.pieceKind of
-        King -> Map.lookup "assets/lui_wink_ed.jpg" images
-        Lance -> Map.lookup "assets/lui_bright.jpg" images
-        Pawn -> Map.lookup "assets/lui_sword.jpg" images
+      lookupResult = Map.lookup (getImagePath capturedPiece.info.pieceKind capturedPiece.player) images
     in
       case lookupResult of
         Nothing -> pure unit

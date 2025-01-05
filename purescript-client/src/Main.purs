@@ -228,10 +228,18 @@ newLocation row col =
   , col
   }
 
+-- Mirrors absolute board locations relative to board center
 mirrorLocation :: Location -> Location
 mirrorLocation location =
   { row: mirror 0 (rows - 1) location.row
   , col: mirror 0 (cols - 1) location.col
+  }
+
+-- Mirrors deltas relative to 0 0
+mirrorDelta :: Location -> Location
+mirrorDelta location =
+  { row: mirror (1 - rows) (rows - 1) location.row
+  , col: mirror (1 - cols) (cols - 1) location.col
   }
 
 posToLocation :: Int -> Int -> Location
@@ -270,9 +278,11 @@ getPieceIndex pieces targetPiece =
           loop (i + 1)
       Nothing -> Nothing
 
-getAllMovements :: Location -> Array Location -> Array Location
-getAllMovements location deltas =
-  deltas <#> (add location)
+getAllMovements :: PlayerId -> Location -> Array Location -> Array Location
+getAllMovements player location deltas =
+  case player of
+    Player1 -> deltas <#> (add location)
+    Player2 -> deltas <#> mirrorDelta <#> (add location)
 
 type PieceInfo =
   { pieceKind :: PieceKind
@@ -291,12 +301,10 @@ type CapturedPiece =
   , player :: PlayerId
   }
 
-pawnInfo :: PlayerId -> PieceInfo
-pawnInfo player =
+pawnInfo :: PieceInfo
+pawnInfo =
   let
-    movements = case player of
-      Player1 -> [ newLocation (-1) 0 ]
-      Player2 -> [ newLocation 1 0 ]
+    movements = [ newLocation (-1) 0 ]
   in
     { pieceKind: Pawn
     , movements
@@ -337,7 +345,7 @@ initialState = do
   let
     createPawn :: PlayerId -> Location -> Piece
     createPawn player location =
-      { info: pawnInfo player
+      { info: pawnInfo
       , player
       , location
       }
@@ -378,8 +386,8 @@ initialState = do
     { tickCount: 0
     , pieces
     , capturedPieces: []
-    , player: Player1
-    , currentPlayer: Player1
+    , player: Player2
+    , currentPlayer: Player2
     , activePieceIndex: Nothing
     , activeCapturedPieceIndex: Nothing
     , capturedPanel: initializeCapturedPanel
@@ -495,8 +503,14 @@ onMouseDown _ { x, y } gameState =
       mNewState = do
         capturedPiece <- state.capturedPieces !! index
         enemyPieces <- pure $ filter (\p -> not (isSamePlayer p.player state.player)) state.pieces
+        enemyPlayer <- pure $ case state.player of
+          Player1 -> Player2
+          Player2 -> Player1
         allPieceLocations <- pure $ map (_.location) state.pieces
-        allPossibleAttacks <- pure $ foldl (<>) [] $ zipWith getAllMovements (map (_.location) enemyPieces) (map (_.info.movements) enemyPieces)
+        allPossibleAttacks <-
+          zipWith (getAllMovements enemyPlayer) (map (_.location) enemyPieces) (map (_.info.movements) enemyPieces)
+            # foldl (<>) []
+            # pure
         invalidLocations <- pure $ allPieceLocations <> allPossibleAttacks
 
         if locationInBounds clickLocation && not (elem clickLocation invalidLocations) then do
@@ -533,7 +547,7 @@ onMouseDown _ { x, y } gameState =
 
       mNewState = do
         piece <- state.pieces !! index
-        possibleMovements <- pure $ getAllMovements piece.location piece.info.movements # (filter locationInBounds)
+        possibleMovements <- pure $ getAllMovements state.player piece.location piece.info.movements # (filter locationInBounds)
 
         if piece.location /= clickLocation && elem clickLocation possibleMovements then do
           piecesAfterMove <- updateAt index (piece { location = clickLocation }) state.pieces

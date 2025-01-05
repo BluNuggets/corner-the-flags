@@ -9,6 +9,7 @@ package:
     - lists
     - maybe
     - prelude
+    - simple-json
     - tuples
   test:
     main: Test.Main

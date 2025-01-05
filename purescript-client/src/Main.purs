@@ -14,6 +14,10 @@ import Data.Number as Number
 import Effect (Effect)
 import Effect.Console (log)
 import Graphics.Canvas as Canvas
+import Data.Generic.Rep (class Generic)
+import Data.Show.Generic (genericShow)
+import Simple.JSON as JSON -- External library for JSON encoding/decoding
+import Data.Either (Either(..))
 
 capturedPanelWidth :: Number
 capturedPanelWidth = 150.0
@@ -231,6 +235,11 @@ data PieceKind
   | Lance
   | Pawn
 
+derive instance Generic PieceKind _
+
+instance Show PieceKind where
+  show = genericShow
+
 type Location =
   { row :: Int
   , col :: Int
@@ -351,6 +360,57 @@ data GameOverState
   | Draw
   | None
 
+-- Message Formats
+
+type MovePayload =
+  { frame :: Int
+  , message_type :: String
+  , message_content ::
+      { move_src :: Location
+      , move_dest :: Location
+      }
+  }
+
+createMovePayload :: GameState -> Location -> Location -> MovePayload
+createMovePayload state srcLocation destLocation =
+  { frame: state.tickCount
+  , message_type: "move"
+  , message_content:
+      { move_src: srcLocation
+      , move_dest: destLocation
+      }
+  }
+
+type PlacePayload =
+  { frame :: Int
+  , message_type :: String
+  , message_content ::
+      { place_piece_kind :: String
+      , move_dest :: Location
+      }
+  }
+
+createPlacePayload :: GameState -> PieceKind -> Location -> PlacePayload
+createPlacePayload state pieceKind destLocation =
+  { frame: state.tickCount
+  , message_type: "place"
+  , message_content:
+      { place_piece_kind: show pieceKind
+      , move_dest: destLocation
+      }
+  }
+
+type PingPayload =
+  { frame :: Int
+  , message_type :: String
+  }
+
+createPingPayload :: GameState -> PingPayload
+createPingPayload state =
+  { frame: state.tickCount
+  , message_type: "ping"
+  }
+
 -- Game state and logic
 type GameState =
   { tickCount :: Int
@@ -365,6 +425,8 @@ type GameState =
   , capturedPanel :: CapturedPanel
   , gameOverState :: GameOverState
   , lastReceivedMessage :: Maybe Message
+  , sentPing :: Boolean
+  , recievedPing :: Boolean
   , debugString :: String
   }
 
@@ -423,6 +485,8 @@ initialState = do
     , capturedPanel: initializeCapturedPanel Player1
     , gameOverState: None
     , lastReceivedMessage: Nothing
+    , sentPing: false
+    , recievedPing: false
     , debugString: ""
     }
 
@@ -461,8 +525,12 @@ checkGameOver state =
     state { gameOverState = gameOverState }
 
 onTick :: (String -> Effect Unit) -> GameState -> Effect GameState
-onTick _ gameState = do
-  log $ show $ "Turn: " <> show gameState.turn <> " | Action: " <> show gameState.action
+onTick send gameState = do
+  log $ "Debug: " <> gameState.debugString <> " | " <> "Player: " <> show gameState.player
+
+  when (not gameState.sentPing) do
+    send $ JSON.writeJSON $ createPingPayload gameState
+
   -- log $ "Tick: " <> show gameState.tickCount
 
   {--
@@ -472,7 +540,7 @@ if gameState.tickCount `mod` fps == 0 then do
   pure $ gameState { x = x, y = y, tickCount = gameState.tickCount + 1 }
 else
 --}
-  pure $ gameState { tickCount = gameState.tickCount + 1 }
+  pure $ gameState { tickCount = gameState.tickCount + 1, sentPing = true }
 
 onMouseDown :: (String -> Effect Unit) -> { x :: Int, y :: Int } -> GameState -> Effect GameState
 onMouseDown _ { x, y } gameState =
@@ -685,22 +753,58 @@ onKeyUp _ _ gameState = pure gameState
 onMessage :: (String -> Effect Unit) -> Message -> GameState -> Effect GameState
 onMessage _ message gameState = do
   log $ "Received message: " <> show message
-  pure $ gameState { lastReceivedMessage = Just message }
+
+  -- This method is not particularly extendable,
+  -- but since this isn't a requirement I'll just leave it as is
+  (pure gameState)
+    <#> recieveMoveMessage
+    <#> recievePlaceMessage
+    <#> recievePingMessage
+
+  where
+  recieveMoveMessage :: GameState -> GameState
+  recieveMoveMessage state =
+    case JSON.readJSON message.payload of
+      Right (payload :: MovePayload) ->
+        if not (isSamePlayer message.playerId state.player) && payload.message_type == "move" then
+          handleMoveMessage payload state
+        else state
+      _ -> state
+
+  handleMoveMessage :: MovePayload -> GameState -> GameState
+  handleMoveMessage payload state =
+    state
+
+  recievePlaceMessage :: GameState -> GameState
+  recievePlaceMessage state =
+    case JSON.readJSON message.payload of
+      Right (payload :: PlacePayload) ->
+        if not (isSamePlayer message.playerId state.player) && payload.message_type == "place" then
+          handlePlaceMessage payload state
+        else state
+      _ -> state
+
+  handlePlaceMessage :: PlacePayload -> GameState -> GameState
+  handlePlaceMessage payload state =
+    state
+
+  -- Not a reliable method of handling connections
+  -- It would be better if I had direct access to the game engine methods
+  -- However, this should suffice at least
+  recievePingMessage :: GameState -> GameState
+  recievePingMessage state =
+    if not state.recievedPing then
+      case JSON.readJSON message.payload of
+        Right (payload :: PingPayload) ->
+          if payload.message_type == "ping" then
+            state { player = message.playerId, recievedPing = true, debugString = "test" }
+          else state
+        _ -> state
+    else state
 
 onRender :: Map.Map String Canvas.CanvasImageSource -> Canvas.Context2D -> GameState -> Effect Unit
 onRender images ctx gameState = do
   renderGame
-
-  let
-    x = width / 2.0
-    y = width / 2.0
-    color = "white"
-    font = "arial"
-    size = 18
-
-  case gameState.lastReceivedMessage of
-    Nothing -> drawText ctx { x, y, color, font, size, text: "No messages received yet" }
-    Just message -> drawText ctx { x, y, color, font, size, text: "Last received message: " <> message.payload }
 
   where
   renderGame :: Effect Unit

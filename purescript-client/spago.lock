@@ -13,6 +13,7 @@
             "lists",
             "maybe",
             "prelude",
+            "simple-json",
             "tuples"
           ],
           "build_plan": [
@@ -36,6 +37,7 @@
             "exists",
             "foldable-traversable",
             "foreign",
+            "foreign-object",
             "functions",
             "functors",
             "gen",
@@ -60,16 +62,20 @@
             "prelude",
             "profunctor",
             "random",
+            "record",
             "refs",
             "safe-coerce",
+            "simple-json",
             "st",
             "strings",
             "tailrec",
             "transformers",
             "tuples",
             "type-equality",
+            "typelevel-prelude",
             "unfoldable",
             "unsafe-coerce",
+            "variant",
             "web-dom",
             "web-events",
             "web-file",
@@ -878,6 +884,25 @@
         "transformers"
       ]
     },
+    "foreign-object": {
+      "type": "registry",
+      "version": "4.1.0",
+      "integrity": "sha256-q24okj6mT+yGHYQ+ei/pYPj5ih6sTbu7eDv/WU56JVo=",
+      "dependencies": [
+        "arrays",
+        "foldable-traversable",
+        "functions",
+        "gen",
+        "lists",
+        "maybe",
+        "prelude",
+        "st",
+        "tailrec",
+        "tuples",
+        "typelevel-prelude",
+        "unfoldable"
+      ]
+    },
     "functions": {
       "type": "registry",
       "version": "6.0.0",
@@ -1155,6 +1180,16 @@
         "integers"
       ]
     },
+    "record": {
+      "type": "registry",
+      "version": "4.0.0",
+      "integrity": "sha256-Za5U85bTRJEfGK5Sk4hM41oXy84YQI0I8TL3WUn1Qzg=",
+      "dependencies": [
+        "functions",
+        "prelude",
+        "unsafe-coerce"
+      ]
+    },
     "refs": {
       "type": "registry",
       "version": "6.0.0",
@@ -1170,6 +1205,22 @@
       "integrity": "sha256-a1ibQkiUcbODbLE/WAq7Ttbbh9ex+x33VCQ7GngKudU=",
       "dependencies": [
         "unsafe-coerce"
+      ]
+    },
+    "simple-json": {
+      "type": "registry",
+      "version": "9.0.0",
+      "integrity": "sha256-K3RJaThqsszTd+TEklzZmAdDqvIHWgXIfKqlsoykU1c=",
+      "dependencies": [
+        "arrays",
+        "exceptions",
+        "foreign",
+        "foreign-object",
+        "nullable",
+        "prelude",
+        "record",
+        "typelevel-prelude",
+        "variant"
       ]
     },
     "st": {
@@ -1259,6 +1310,15 @@
       "integrity": "sha256-Hs9D6Y71zFi/b+qu5NSbuadUQXe5iv5iWx0226vOHUw=",
       "dependencies": []
     },
+    "typelevel-prelude": {
+      "type": "registry",
+      "version": "7.0.0",
+      "integrity": "sha256-uFF2ph+vHcQpfPuPf2a3ukJDFmLhApmkpTMviHIWgJM=",
+      "dependencies": [
+        "prelude",
+        "type-equality"
+      ]
+    },
     "unfoldable": {
       "type": "registry",
       "version": "6.0.0",
@@ -1276,6 +1336,21 @@
       "version": "6.0.0",
       "integrity": "sha256-IqIYW4Vkevn8sI+6aUwRGvd87tVL36BBeOr0cGAE7t0=",
       "dependencies": []
+    },
+    "variant": {
+      "type": "registry",
+      "version": "8.0.0",
+      "integrity": "sha256-SR//zQDg2dnbB8ZHslcxieUkCeNlbMToapvmh9onTtw=",
+      "dependencies": [
+        "enums",
+        "lists",
+        "maybe",
+        "partial",
+        "prelude",
+        "record",
+        "tuples",
+        "unsafe-coerce"
+      ]
     },
     "web-dom": {
       "type": "registry",

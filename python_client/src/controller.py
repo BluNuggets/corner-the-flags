@@ -86,13 +86,18 @@ class BoardGameController:
                         if message_content.move_dest is None:
                             return
 
-                        if message_content.player is None:
-                            return
+                        match message.source:
+                            case 1:
+                                player: Player = Player.PLAYER_1
+                            case 2:
+                                player = Player.PLAYER_2
+                            case _:
+                                return
 
                         self.on_move_piece(
                             message_content.move_src,
                             message_content.move_dest,
-                            message_content.player,
+                            player,
                         )
                     case GameMessageType.PLACE:
                         if message_content.place_piece_kind is None:
@@ -101,13 +106,18 @@ class BoardGameController:
                         if message_content.place_dest is None:
                             return
 
-                        if message_content.player is None:
-                            return
+                        match message.source:
+                            case 1:
+                                player: Player = Player.PLAYER_1
+                            case 2:
+                                player = Player.PLAYER_2
+                            case _:
+                                return
 
                         self.on_place_piece(
                             message_content.place_piece_kind,
                             message_content.place_dest,
-                            message_content.player,
+                            player,
                         )
                     case GameMessageType.INVALID:
                         pass

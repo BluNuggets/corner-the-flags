@@ -216,7 +216,6 @@ class LocationDict(TypedDict):
 
 
 class GameMessageContentDict(TypedDict, total=False):
-    player: Player
     move_src: LocationDict
     move_dest: LocationDict
     place_piece_kind: PieceKind
@@ -224,12 +223,10 @@ class GameMessageContentDict(TypedDict, total=False):
 
 
 class MakeMoveGameMessageContentDict(GameMessageContentDict, total=False):
-    player: Player
     move_src: LocationDict
     move_dest: LocationDict
 
 
 class PlacePieceGameMessageContentDict(GameMessageContentDict, total=False):
-    player: Player
     place_piece_kind: PieceKind
     place_dest: LocationDict

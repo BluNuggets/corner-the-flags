@@ -120,6 +120,9 @@ class Location:
 
 class PieceData(Protocol):
     @property
+    def player(self) -> Player: ...
+
+    @property
     def piece_kind(self) -> PieceKind: ...
 
     @property
@@ -138,42 +141,6 @@ class BoardData(Protocol):
 
     @property
     def pieces(self) -> Mapping[Location, PieceData]: ...
-
-
-# todo: does this stay here in project_types?
-# --- MARK: PiecePositions
-
-
-class PiecePositions(Protocol):
-    def get_positions(self) -> dict[Location, tuple[Player, PieceKind]]: ...
-
-
-class BoardGamePiecePositions:
-    def get_positions(self) -> dict[Location, tuple[Player, PieceKind]]:
-        return {
-            # Player 1
-            Location(2, 1): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(3, 2): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 3): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 4): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 5): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 6): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 7): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 8): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(1, 3): (Player.PLAYER_1, PieceKind.LANCE),
-            Location(1, 2): (Player.PLAYER_1, PieceKind.LANCE),
-            Location(1, 1): (Player.PLAYER_1, PieceKind.KING),
-            # Player 2
-            Location(7, 1): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 2): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 3): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 4): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 5): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 6): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 7): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 8): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(8, 1): (Player.PLAYER_2, PieceKind.KING),
-        }
 
 
 # --- MARK: MoveFeedbackInfo

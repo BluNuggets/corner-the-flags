@@ -9,8 +9,6 @@ from project_types import (
     Player,
     PieceKind,
     Location,
-    PiecePositions,
-    BoardGamePiecePositions,
     MoveFeedback,
     MoveFeedbackInfo,
     PlaceFeedback,
@@ -197,6 +195,41 @@ class BoardGamePieceFactory:
                 return ProtectedPiece(player, PieceKind.KING, location, KingMovement())
             case PieceKind.LANCE:
                 return RegularPiece(player, PieceKind.LANCE, location, LanceMovement())
+
+
+# --- MARK: PiecePositions
+
+
+class PiecePositions(Protocol):
+    def get_positions(self) -> dict[Location, tuple[Player, PieceKind]]: ...
+
+
+class BoardGamePiecePositions:
+    def get_positions(self) -> dict[Location, tuple[Player, PieceKind]]:
+        return {
+            # Player 1
+            Location(2, 1): (Player.PLAYER_1, PieceKind.PAWN),
+            Location(3, 2): (Player.PLAYER_1, PieceKind.PAWN),
+            Location(2, 3): (Player.PLAYER_1, PieceKind.PAWN),
+            Location(2, 4): (Player.PLAYER_1, PieceKind.PAWN),
+            Location(2, 5): (Player.PLAYER_1, PieceKind.PAWN),
+            Location(2, 6): (Player.PLAYER_1, PieceKind.PAWN),
+            Location(2, 7): (Player.PLAYER_1, PieceKind.PAWN),
+            Location(2, 8): (Player.PLAYER_1, PieceKind.PAWN),
+            Location(1, 3): (Player.PLAYER_1, PieceKind.LANCE),
+            Location(1, 2): (Player.PLAYER_1, PieceKind.LANCE),
+            Location(1, 1): (Player.PLAYER_1, PieceKind.KING),
+            # Player 2
+            Location(7, 1): (Player.PLAYER_2, PieceKind.PAWN),
+            Location(7, 2): (Player.PLAYER_2, PieceKind.PAWN),
+            Location(7, 3): (Player.PLAYER_2, PieceKind.PAWN),
+            Location(7, 4): (Player.PLAYER_2, PieceKind.PAWN),
+            Location(7, 5): (Player.PLAYER_2, PieceKind.PAWN),
+            Location(7, 6): (Player.PLAYER_2, PieceKind.PAWN),
+            Location(7, 7): (Player.PLAYER_2, PieceKind.PAWN),
+            Location(7, 8): (Player.PLAYER_2, PieceKind.PAWN),
+            Location(8, 1): (Player.PLAYER_2, PieceKind.KING),
+        }
 
 
 # --- MARK: Board
@@ -436,9 +469,7 @@ class BoardGameModel:
 
         for piece in self.protected_pieces[player]:
             for dest in piece.destinations:
-                if self.is_move_valid(
-                    piece.location, dest, None
-                ):
+                if self.is_move_valid(piece.location, dest, None):
                     return True
 
         return False
@@ -476,10 +507,7 @@ class BoardGameModel:
                     self._state = replace(self._state, _player_to_move=Player.PLAYER_1)
 
     def get_move_feedback_info(
-        self,
-        src: Location,
-        dest: Location,
-        player: Player | None
+        self, src: Location, dest: Location, player: Player | None
     ) -> MoveFeedbackInfo:
         # not currently player's turn to move
         # skip this condition if player is not specified (to check "hypothetical" moves)
@@ -532,17 +560,9 @@ class BoardGameModel:
                 return MoveFeedbackInfo.VALID
 
     def is_move_valid(
-        self,
-        src: Location,
-        dest: Location,
-        player: Player | None
+        self, src: Location, dest: Location, player: Player | None
     ) -> bool:
-        return (
-            self.get_move_feedback_info(
-                src, dest, player
-            )
-            == MoveFeedbackInfo.VALID
-        )
+        return self.get_move_feedback_info(src, dest, player) == MoveFeedbackInfo.VALID
 
     def _make_valid_move_feedback(
         self, src: Location, dest: Location, player: Player
@@ -614,10 +634,7 @@ class BoardGameModel:
             return ret
 
     def get_place_feedback_info(
-        self,
-        piece_kind: PieceKind,
-        dest: Location,
-        player: Player | None
+        self, piece_kind: PieceKind, dest: Location, player: Player | None
     ) -> PlaceFeedbackInfo:
         # not currently player's turn to place
         # skip this condition if player is not specified (to check "hypothetical" places)
@@ -647,7 +664,7 @@ class BoardGameModel:
                 for protected_piece in protected_pieces:
                     if self.is_move_valid(protected_piece.location, dest, None):
                         return PlaceFeedbackInfo.BLOCKS_PROTECTED_PIECE_MOVEMENT
-                    
+
             return PlaceFeedbackInfo.VALID
         # a piece cannot be placed on an occupied dest Location
         else:
@@ -660,9 +677,7 @@ class BoardGameModel:
         player: Player | None,
     ) -> bool:
         return (
-            self.get_place_feedback_info(
-                piece_kind, dest, player
-            )
+            self.get_place_feedback_info(piece_kind, dest, player)
             == PlaceFeedbackInfo.VALID
         )
 

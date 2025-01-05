@@ -6,18 +6,18 @@ import CS150241Project.GameEngine (startNetworkGame)
 import CS150241Project.Graphics (clearCanvas, drawImageScaled, drawRect, drawRectOutline, drawText)
 import CS150241Project.Networking (Message, PlayerId(..))
 import Data.Array (all, deleteAt, elem, filter, find, findIndex, length, slice, updateAt, zipWith, (!!), (..))
+import Data.Either (Either(..))
 import Data.Foldable (foldl)
+import Data.Generic.Rep (class Generic)
 import Data.Int (toNumber, floor)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.Number as Number
+import Data.Show.Generic (genericShow)
 import Effect (Effect)
 import Effect.Console (log)
 import Graphics.Canvas as Canvas
-import Data.Generic.Rep (class Generic)
-import Data.Show.Generic (genericShow)
-import Simple.JSON as JSON -- External library for JSON encoding/decoding
-import Data.Either (Either(..))
+import Simple.JSON as JSON
 
 capturedPanelWidth :: Number
 capturedPanelWidth = 150.0
@@ -426,9 +426,16 @@ type GameState =
   , gameOverState :: GameOverState
   , lastReceivedMessage :: Maybe Message
   , sentPing :: Boolean
-  , recievedPing :: Boolean
+  , receivedPing :: Boolean
   , debugString :: String
   }
+
+updateTurnActions :: GameState -> GameState
+updateTurnActions state =
+  if state.action + 1 <= actionsPerTurn then
+    state { action = state.action + 1 }
+  else
+    state { turn = state.turn + 1, action = 1, currentPlayer = getEnemyPlayer state.currentPlayer }
 
 initialState :: Effect GameState
 initialState = do
@@ -486,7 +493,7 @@ initialState = do
     , gameOverState: None
     , lastReceivedMessage: Nothing
     , sentPing: false
-    , recievedPing: false
+    , receivedPing: false
     , debugString: ""
     }
 
@@ -526,7 +533,7 @@ checkGameOver state =
 
 onTick :: (String -> Effect Unit) -> GameState -> Effect GameState
 onTick send gameState = do
-  log $ "Debug: " <> gameState.debugString <> " | " <> "Player: " <> show gameState.player
+  log $ "Debug: " <> gameState.debugString
 
   when (not gameState.sentPing) do
     send $ JSON.writeJSON $ createPingPayload gameState
@@ -543,13 +550,13 @@ else
   pure $ gameState { tickCount = gameState.tickCount + 1, sentPing = true }
 
 onMouseDown :: (String -> Effect Unit) -> { x :: Int, y :: Int } -> GameState -> Effect GameState
-onMouseDown _ { x, y } gameState =
+onMouseDown send { x, y } gameState =
   case gameState.gameOverState of
     None ->
       if isSamePlayer gameState.player gameState.currentPlayer then
         (pure gameState)
           <#> checkClickCapturedPanel
-          <#> checkClickBoard
+          # checkClickBoard
           <#> checkGameOver
       else
         (pure gameState)
@@ -631,15 +638,10 @@ onMouseDown _ { x, y } gameState =
       foldl checkClickButton state buttons
         # checkClickCapturedPieces
 
-  updateTurnActions :: GameState -> GameState
-  updateTurnActions state =
-    if state.action + 1 <= actionsPerTurn then
-      state { action = state.action + 1 }
-    else
-      state { turn = state.turn + 1, action = 1, currentPlayer = getEnemyPlayer state.player }
+  placeCapturedPiece :: Location -> Int -> Effect GameState -> Effect GameState
+  placeCapturedPiece clickLocation index eState = do
+    state <- eState
 
-  placeCapturedPiece :: Location -> Int -> GameState -> GameState
-  placeCapturedPiece clickLocation index state =
     let
       mNewState = do
         capturedPiece <- state.capturedPieces !! index
@@ -647,7 +649,6 @@ onMouseDown _ { x, y } gameState =
         -- that blocks the movement of our own protected piece
         protectedPieces <- pure $ filter (_.info.isProtected) state.pieces
         allPieceLocations <- pure $ map (_.location) state.pieces
-
         possibleProtectedMovements <-
           map (\p -> getAllMovements p.player p.location p.info.movements) protectedPieces
             # foldl (<>) []
@@ -676,15 +677,18 @@ onMouseDown _ { x, y } gameState =
           pure $ selectPiece clickLocation (state { activeCapturedPieceIndex = Nothing })
         else
           pure state
-    in
-      case mNewState of
-        Just newState -> newState
-        Nothing -> state
 
-  movePiece :: Location -> Int -> GameState -> GameState
-  movePiece clickLocation index state =
+    case mNewState of
+      Just newState -> pure newState
+      Nothing -> pure state
+
+  movePiece :: Location -> Int -> Effect GameState -> Effect GameState
+  movePiece clickLocation index eState = do
+    state <- eState
+
     let
-      mNewState = do
+      mResult :: Maybe { newState :: GameState, move_src :: Maybe Location, move_dest :: Maybe Location }
+      mResult = do
         piece <- state.pieces !! index
         possibleMovements <- pure $ getAllMovements state.player piece.location piece.info.movements # (filter locationInBounds)
 
@@ -701,19 +705,45 @@ onMouseDown _ { x, y } gameState =
                   newCount = length newCapturedPieces
                   newPageCount = 1 + (newCount - 1) / state.capturedPanel.maxCapturedPerPage
 
-                pure $ (updateTurnActions state)
+                newState <- pure $ (updateTurnActions state)
                   { pieces = piecesAfterCapture
                   , capturedPieces = state.capturedPieces <> [ { info: destPiece.info, player: state.currentPlayer } ]
                   , activePieceIndex = Nothing
                   , capturedPanel { currentPageCount = newPageCount }
                   }
-              else pure $ state { activePieceIndex = Nothing }
-            Nothing -> pure $ (updateTurnActions state) { pieces = piecesAfterMove, activePieceIndex = Nothing }
-        else pure $ state { activePieceIndex = Nothing }
-    in
-      case mNewState of
-        Just newState -> newState
-        Nothing -> state
+
+                Just
+                  { newState: newState
+                  , move_src: Just piece.location
+                  , move_dest: Just clickLocation
+                  }
+              else
+                Just
+                  { newState: state { activePieceIndex = Nothing }
+                  , move_src: Nothing
+                  , move_dest: Nothing
+                  }
+            Nothing ->
+              Just
+                { newState: (updateTurnActions state) { pieces = piecesAfterMove, activePieceIndex = Nothing }
+                , move_src: Just piece.location
+                , move_dest: Just clickLocation
+                }
+        else
+          Just
+            { newState: state { activePieceIndex = Nothing }
+            , move_src: Nothing
+            , move_dest: Nothing
+            }
+
+    case mResult of
+      Just result ->
+        case result.move_src, result.move_dest of
+          Just src, Just dest -> do
+            send $ JSON.writeJSON $ createMovePayload result.newState src dest
+            pure result.newState
+          _, _ -> pure result.newState
+      Nothing -> pure state
 
   selectPiece :: Location -> GameState -> GameState
   selectPiece clickLocation state =
@@ -730,17 +760,21 @@ onMouseDown _ { x, y } gameState =
             state
         Nothing -> state
 
-  checkClickBoard :: GameState -> GameState
-  checkClickBoard state =
+  checkClickBoard :: Effect GameState -> Effect GameState
+  checkClickBoard eState = do
+    state <- eState
+
     let
       clickLocation = case state.player of
         Player1 -> posToLocation y x
         Player2 -> mirrorLocation $ posToLocation y x
-    in
-      case state.activePieceIndex, state.activeCapturedPieceIndex of
-        Just index, Nothing -> movePiece clickLocation index state
-        Nothing, Just index -> placeCapturedPiece clickLocation index state
-        _, _ -> selectPiece clickLocation state
+
+    log $ show clickLocation
+
+    case state.activePieceIndex, state.activeCapturedPieceIndex of
+      Just index, Nothing -> movePiece clickLocation index eState
+      Nothing, Just index -> placeCapturedPiece clickLocation index eState
+      _, _ -> pure $ selectPiece clickLocation state
 
 onKeyDown :: (String -> Effect Unit) -> String -> GameState -> Effect GameState
 onKeyDown send key gameState = do
@@ -757,13 +791,13 @@ onMessage _ message gameState = do
   -- This method is not particularly extendable,
   -- but since this isn't a requirement I'll just leave it as is
   (pure gameState)
-    <#> recieveMoveMessage
-    <#> recievePlaceMessage
-    <#> recievePingMessage
+    <#> receiveMoveMessage
+    <#> receivePlaceMessage
+    <#> receivePingMessage
 
   where
-  recieveMoveMessage :: GameState -> GameState
-  recieveMoveMessage state =
+  receiveMoveMessage :: GameState -> GameState
+  receiveMoveMessage state =
     case JSON.readJSON message.payload of
       Right (payload :: MovePayload) ->
         if not (isSamePlayer message.playerId state.player) && payload.message_type == "move" then
@@ -773,10 +807,32 @@ onMessage _ message gameState = do
 
   handleMoveMessage :: MovePayload -> GameState -> GameState
   handleMoveMessage payload state =
-    state
+    let
+      { move_src, move_dest } = payload.message_content
+      src = move_src
+      dest = move_dest
 
-  recievePlaceMessage :: GameState -> GameState
-  recievePlaceMessage state =
+      initialPieces = state.pieces
+
+      mNewState = do
+        piece <- getPieceAtLocation initialPieces src
+        index <- getPieceIndex initialPieces piece
+        piecesAfterMove <- updateAt index (piece { location = dest }) initialPieces
+
+        case getPieceAtLocation initialPieces dest of
+          Just capturedPiece -> do
+            capturedIndex <- getPieceIndex initialPieces capturedPiece
+            piecesAfterCapture <- deleteAt capturedIndex piecesAfterMove
+            pure $ (updateTurnActions state) { pieces = piecesAfterCapture }
+          Nothing ->
+            pure $ (updateTurnActions state) { pieces = piecesAfterMove }
+    in
+      case mNewState of
+        Just newState -> newState
+        Nothing -> state
+
+  receivePlaceMessage :: GameState -> GameState
+  receivePlaceMessage state =
     case JSON.readJSON message.payload of
       Right (payload :: PlacePayload) ->
         if not (isSamePlayer message.playerId state.player) && payload.message_type == "place" then
@@ -791,13 +847,13 @@ onMessage _ message gameState = do
   -- Not a reliable method of handling connections
   -- It would be better if I had direct access to the game engine methods
   -- However, this should suffice at least
-  recievePingMessage :: GameState -> GameState
-  recievePingMessage state =
-    if not state.recievedPing then
+  receivePingMessage :: GameState -> GameState
+  receivePingMessage state =
+    if not state.receivedPing then
       case JSON.readJSON message.payload of
         Right (payload :: PingPayload) ->
           if payload.message_type == "ping" then
-            state { player = message.playerId, recievedPing = true, debugString = "test" }
+            state { player = message.playerId, receivedPing = true }
           else state
         _ -> state
     else state

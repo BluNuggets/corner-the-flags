@@ -332,6 +332,13 @@ kingInfo =
     , isProtected: true
     }
 
+-- Game Over Definitions
+data GameOverState
+  = Winner PlayerId
+  | Draw
+  | None
+
+-- Game state and logic
 type GameState =
   { tickCount :: Int
   , pieces :: Array Piece
@@ -341,6 +348,7 @@ type GameState =
   , activePieceIndex :: Maybe Int
   , activeCapturedPieceIndex :: Maybe Int
   , capturedPanel :: CapturedPanel
+  , gameOverState :: GameOverState
   , lastReceivedMessage :: Maybe Message
   , debugString :: String
   }
@@ -396,6 +404,7 @@ initialState = do
     , activePieceIndex: Nothing
     , activeCapturedPieceIndex: Nothing
     , capturedPanel: initializeCapturedPanel Player1
+    , gameOverState: None
     , lastReceivedMessage: Nothing
     , debugString: ""
     }
@@ -416,13 +425,17 @@ else
 
 onMouseDown :: (String -> Effect Unit) -> { x :: Int, y :: Int } -> GameState -> Effect GameState
 onMouseDown _ { x, y } gameState =
-  if isSamePlayer gameState.player gameState.currentPlayer then
-    (pure gameState)
-      <#> checkClickCapturedPanel
-      <#> checkClickBoard
-  else
-    (pure gameState)
-      <#> checkClickCapturedPanel
+  case gameState.gameOverState of
+    None ->
+      if isSamePlayer gameState.player gameState.currentPlayer then
+        (pure gameState)
+          <#> checkClickCapturedPanel
+          <#> checkClickBoard
+      else
+        (pure gameState)
+          <#> checkClickCapturedPanel
+    _ ->
+      pure gameState
 
   where
   nx = toNumber x
@@ -643,6 +656,7 @@ onRender images ctx gameState = do
     clearCanvas ctx { color: "black", width, height }
     renderBoard gameState.player gameState.pieces gameState.activePieceIndex
     renderCapturedPanel gameState.capturedPanel gameState.capturedPieces gameState.activeCapturedPieceIndex
+    renderGameOver gameState.gameOverState
 
   renderTile :: Int -> Int -> Effect Unit
   renderTile r c =
@@ -793,6 +807,39 @@ onRender images ctx gameState = do
     renderCapturedPanelButtons capturedPanel.buttons
     renderCapturedPieces capturedPanel.capturedPieceSlots capturedPieces capturedPanel.currentPage
     renderActiveCapturedPiece capturedPanel.capturedPieceSlots activeCapturedPieceIndex capturedPanel.currentPage capturedPanel.maxCapturedPerPage
+
+  renderGameOver :: GameOverState -> Effect Unit
+  renderGameOver gameOverState =
+    let
+      mGameOverText = case gameOverState of
+        Winner winner ->
+          case winner of
+            Player1 -> Just "Player 1 (Orange) Wins"
+            Player2 -> Just "Player 2 (Blue) Wins"
+        Draw -> Just "Draw"
+        None -> Nothing
+
+      size = 18
+    in
+      case mGameOverText of
+        Just text -> do
+          drawRect ctx
+            { x: 0.0
+            , y: 0.0
+            , width
+            , height
+            , color: "#000000AA"
+            }
+
+          drawText ctx
+            { x: width / 2.0
+            , y: height / 2.0 + (toNumber size) / 2.0
+            , text
+            , color: "white"
+            , font: "arial"
+            , size
+            }
+        Nothing -> pure unit
 
 main :: Effect Unit
 main =

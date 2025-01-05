@@ -33,13 +33,13 @@ rows = 8
 --might replace tileWidth and tileHeight with tileLength or tileSide 
 -- Currently, this means that each side of the board is AT LEAST 600.00
 tileLength :: Number
-tileLength = Number.floor $ 600.00 / (toNumber $ max cols rows)
+tileLength = Number.floor $ 600.00 / (toNumber $ min cols rows)
 
 tileWidth :: Number
-tileWidth = Number.floor $ 600.00 / (toNumber $ max cols rows)
+tileWidth = Number.floor $ 600.00 / (toNumber $ min cols rows)
 
 tileHeight :: Number
-tileHeight = Number.floor $ 600.00 / (toNumber $ max cols rows)
+tileHeight = Number.floor $ 600.00 / (toNumber $ min cols rows)
 
 boardWidth :: Number
 boardWidth = Number.floor $ tileLength * (toNumber cols)
@@ -490,8 +490,8 @@ onMouseDown _ { x, y } gameState =
       pure gameState
 
   where
-  nx = toNumber x
-  ny = toNumber y
+  nx = toNumber (x-10)
+  ny = toNumber (y-10)
 
   checkClickButton :: GameState -> Button -> GameState
   checkClickButton state button' =

@@ -391,11 +391,11 @@ initialState = do
     { tickCount: 0
     , pieces
     , capturedPieces: []
-    , player: Player2
-    , currentPlayer: Player2
+    , player: Player1
+    , currentPlayer: Player1
     , activePieceIndex: Nothing
     , activeCapturedPieceIndex: Nothing
-    , capturedPanel: initializeCapturedPanel Player2
+    , capturedPanel: initializeCapturedPanel Player1
     , lastReceivedMessage: Nothing
     , debugString: ""
     }
@@ -507,16 +507,16 @@ onMouseDown _ { x, y } gameState =
 
       mNewState = do
         capturedPiece <- state.capturedPieces !! index
-        enemyPieces <- pure $ filter (\p -> not (isSamePlayer p.player state.player)) state.pieces
-        enemyPlayer <- pure $ case state.player of
-          Player1 -> Player2
-          Player2 -> Player1
+        -- Assuming that we also cannot place a piece 
+        -- that blocks the movement of our own protected piece
+        protectedPieces <- pure $ filter (_.info.isProtected) state.pieces
         allPieceLocations <- pure $ map (_.location) state.pieces
-        allPossibleAttacks <-
-          zipWith (getAllMovements enemyPlayer) (map (_.location) enemyPieces) (map (_.info.movements) enemyPieces)
+
+        possibleProtectedMovements <-
+          map (\p -> getAllMovements p.player p.location p.info.movements) protectedPieces
             # foldl (<>) []
             # pure
-        invalidLocations <- pure $ allPieceLocations <> allPossibleAttacks
+        invalidLocations <- pure $ allPieceLocations <> possibleProtectedMovements
 
         if locationInBounds clickLocation && not (elem clickLocation invalidLocations) then do
           newCapturedPieces <- deleteAt index state.capturedPieces

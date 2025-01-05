@@ -15,23 +15,8 @@ import Effect (Effect)
 import Effect.Console (log)
 import Graphics.Canvas as Canvas
 
-boardWidth :: Number
-boardWidth = 600.0
-
-boardHeight :: Number
-boardHeight = 600.0
-
 capturedPanelWidth :: Number
 capturedPanelWidth = 150.0
-
-capturedPanelHeight :: Number
-capturedPanelHeight = boardHeight
-
-width :: Number
-width = boardWidth + capturedPanelWidth
-
-height :: Number
-height = max boardHeight capturedPanelHeight
 
 capturedPieceGap :: Number
 capturedPieceGap = 10.0
@@ -43,13 +28,33 @@ cols :: Int
 cols = 8
 
 rows :: Int
-rows = 8
+rows = 20
+
+--might replace tileWidth and tileHeight with tileLength or tileSide 
+-- Currently, this means that each side of the board is AT LEAST 600.00
+tileLength :: Number
+tileLength = Number.floor $ 600.00 / (toNumber $ max cols rows)
 
 tileWidth :: Number
-tileWidth = Number.floor $ boardWidth / (toNumber cols)
+tileWidth = Number.floor $ 600.00 / (toNumber $ max cols rows)
 
 tileHeight :: Number
-tileHeight = Number.floor $ boardHeight / (toNumber rows)
+tileHeight = Number.floor $ 600.00 / (toNumber $ max cols rows)
+
+boardWidth :: Number
+boardWidth = Number.floor $ tileLength * (toNumber cols)
+
+boardHeight :: Number
+boardHeight = Number.floor $ tileLength * (toNumber rows)
+
+capturedPanelHeight :: Number
+capturedPanelHeight = boardHeight
+
+width :: Number
+width = boardWidth + capturedPanelWidth
+
+height :: Number
+height = max boardHeight capturedPanelHeight
 
 fps :: Int
 fps = 60
@@ -166,7 +171,7 @@ initializeCapturedPanel =
       in
         Just
           { x: capturedPanel.x
-          , y: 580.0
+          , y: capturedPanel.height - 20.0
           , width: textWidth
           , height: textHeight
           , text: "Page 1 of 1"
@@ -183,7 +188,7 @@ initializeCapturedPanel =
         buttonHeight = 2.0 * toNumber fontSize
       in
         [ { x: capturedPanel.x
-          , y: 550.0
+          , y: capturedPanel.height - 50.0
           , width: buttonWidth
           , height: buttonHeight
           , text: "<<< Prev"
@@ -193,7 +198,7 @@ initializeCapturedPanel =
           , onClickAction: PreviousPage
           }
         , { x: capturedPanel.x + buttonWidth
-          , y: 550.0
+          , y: capturedPanel.height - 50.0
           , width: buttonWidth
           , height: buttonHeight
           , text: "Next >>>"
@@ -497,7 +502,7 @@ onMouseDown _ { x, y } gameState =
           let
             newPieces = state.pieces <> [ { info: capturedPiece.info, player: capturedPiece.player, location: clickLocation } ]
             newCount = length newCapturedPieces
-            newPageCount = 1 + (newCount - 1) / state.capturedPanel.maxCapturedPerPage
+            newPageCount = max 1 (1 + (newCount - 1) / state.capturedPanel.maxCapturedPerPage)
 
           pure $ state
             { pieces = newPieces
@@ -617,9 +622,9 @@ onRender images ctx gameState = do
     let
       color =
         if mod (r + c) 2 == 0 then
-          "white"
+          "lightgreen"
         else
-          "black"
+          "lightyellow"
     in
       drawRect ctx
         { x: (toNumber c) * tileWidth

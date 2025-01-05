@@ -47,7 +47,7 @@ capturedPanelButtonOffset :: Number
 capturedPanelButtonOffset = 50.0
 
 tileLength :: Number
-tileLength = Number.floor $ min (minBoardLength / (toNumber $ min cols rows)) (maxBoardLength / (toNumber $ max cols rows)) 
+tileLength = Number.floor $ min (minBoardLength / (toNumber $ min cols rows)) (maxBoardLength / (toNumber $ max cols rows))
 
 capturedPanelWidth :: Number
 capturedPanelWidth = max (tileLength + 20.0) 150.0
@@ -357,8 +357,8 @@ mirrorDelta location =
 posToLocation :: Int -> Int -> Location
 posToLocation y x =
   let
-    row = (y-10) / (floor tileLength)
-    col = (x-10) / (floor tileLength)
+    row = (y - 10) / (floor tileLength)
+    col = (x - 10) / (floor tileLength)
   in
     { row, col }
 
@@ -596,8 +596,8 @@ onMouseDown send { x, y } gameState =
       pure gameState
 
   where
-  nx = toNumber (x-10)
-  ny = toNumber (y-10)
+  nx = toNumber (x - 10)
+  ny = toNumber (y - 10)
 
   checkClickButton :: GameState -> Button -> GameState
   checkClickButton state button' =
@@ -844,6 +844,7 @@ onMessage _ message gameState = do
     <#> receiveMoveMessage
     <#> receivePlaceMessage
     <#> receivePingMessage
+    <#> checkGameOver
 
   where
   receiveMoveMessage :: GameState -> GameState

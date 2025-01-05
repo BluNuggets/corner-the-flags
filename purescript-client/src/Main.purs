@@ -34,14 +34,14 @@ capturedPanelButtonOffset :: Number
 capturedPanelButtonOffset = 50.0
 
 cols :: Int
-cols = 20
+cols = 2
 
 rows :: Int
-rows = 20
+rows = 4
 
 -- Currently, this means that each side of the board is AT LEAST 600.00
 tileLength :: Number
-tileLength = Number.floor $ 600.00 / (toNumber $ min cols rows)
+tileLength = Number.floor $ min (600.00 / (toNumber $ min cols rows)) (1000.00 / (toNumber $ max cols rows)) 
 
 boardWidth :: Number
 boardWidth = Number.floor $ tileLength * (toNumber cols)

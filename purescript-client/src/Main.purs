@@ -147,21 +147,16 @@ type Button =
   , onClickAction :: ButtonActions
   }
 
-initializeCapturedPanel :: PlayerId -> CapturedPanel
-initializeCapturedPanel player =
+initializeCapturedPanel :: CapturedPanel
+initializeCapturedPanel =
   let
-    -- PlayerId is just needed for coloring the panel
-    panelColor = case player of
-      Player1 -> "sandybrown"
-      Player2 -> "deepskyblue"
-
     capturedPanel :: CapturedPanel
     capturedPanel =
       { x: boardWidth
       , y: 0.0
       , width: capturedPanelWidth
       , height: capturedPanelHeight
-      , color: panelColor
+      , color: "sandybrown"
       , slotGap: capturedPieceGap
       , capturedPieceSlots: []
       , buttons: []
@@ -520,7 +515,7 @@ initialState = do
     , action: 1
     , activePieceIndex: Nothing
     , activeCapturedPieceIndex: Nothing
-    , capturedPanel: initializeCapturedPanel Player1
+    , capturedPanel: initializeCapturedPanel
     , gameOverState: None
     , lastReceivedMessage: Nothing
     , sentPing: false
@@ -930,7 +925,7 @@ onRender images ctx gameState = do
   renderGame = do
     clearCanvas ctx { color: "black", width, height }
     renderBoard gameState.player gameState.pieces gameState.activePieceIndex
-    renderCapturedPanel gameState.capturedPanel gameState.capturedPieces gameState.activeCapturedPieceIndex
+    renderCapturedPanel gameState.capturedPanel gameState.capturedPieces gameState.activeCapturedPieceIndex gameState.player
     renderGameOver gameState.gameOverState
 
   renderTile :: Int -> Int -> Effect Unit
@@ -1075,9 +1070,14 @@ onRender images ctx gameState = do
           }
       Nothing -> pure unit
 
-  renderCapturedPanel :: CapturedPanel -> Array CapturedPiece -> Maybe Int -> Effect Unit
-  renderCapturedPanel capturedPanel capturedPieces activeCapturedPieceIndex = do
-    drawRect ctx { x: capturedPanel.x, y: capturedPanel.y, width: capturedPanel.width, height: capturedPanel.height, color: capturedPanel.color }
+  renderCapturedPanel :: CapturedPanel -> Array CapturedPiece -> Maybe Int -> PlayerId -> Effect Unit
+  renderCapturedPanel capturedPanel capturedPieces activeCapturedPieceIndex player = do
+    let
+      panelColor = case player of
+        Player1 -> "sandybrown"
+        Player2 -> "deepskyblue"
+
+    drawRect ctx { x: capturedPanel.x, y: capturedPanel.y, width: capturedPanel.width, height: capturedPanel.height, color: panelColor }
     renderPageText capturedPanel.pageText capturedPanel.currentPage capturedPanel.currentPageCount
     renderCapturedPanelButtons capturedPanel.buttons
     renderCapturedPieces capturedPanel.capturedPieceSlots capturedPieces capturedPanel.currentPage

@@ -5,7 +5,7 @@ import Prelude
 import CS150241Project.GameEngine (startNetworkGame)
 import CS150241Project.Graphics (clearCanvas, drawImageScaled, drawRect, drawRectOutline, drawText)
 import CS150241Project.Networking (Message, PlayerId(..))
-import Data.Array (deleteAt, elem, filter, find, findIndex, length, slice, updateAt, zipWith, (!!), (..))
+import Data.Array (all, deleteAt, elem, filter, find, findIndex, length, slice, updateAt, zipWith, (!!), (..))
 import Data.Foldable (foldl)
 import Data.Int (toNumber, floor)
 import Data.Map as Map
@@ -255,6 +255,10 @@ posToLocation y x =
   in
     { row, col }
 
+locationInBounds :: Location -> Boolean
+locationInBounds location =
+  elem location.row (0 .. (rows - 1)) && elem location.col (0 .. (cols - 1))
+
 getPieceAtLocation :: Array Piece -> Location -> Maybe Piece
 getPieceAtLocation pieces location =
   loop 0
@@ -409,9 +413,45 @@ initialState = do
     , debugString: ""
     }
 
+checkGameOver :: GameState -> GameState
+checkGameOver state =
+  let
+    -- Brute force method
+    protectedPieces = filter (_.info.isProtected) state.pieces
+    player = state.player
+    enemyPlayer = case player of
+      Player1 -> Player2
+      Player2 -> Player1
+
+    playerProtectedPieces = filter (\p -> isSamePlayer player p.player) protectedPieces
+    enemyProtectedPieces = filter (\p -> isSamePlayer enemyPlayer p.player) protectedPieces
+
+    playerProtectedMovements =
+      map (\p -> getAllMovements player p.location p.info.movements) playerProtectedPieces
+        # foldl (<>) []
+        # filter locationInBounds
+    enemyProtectedMovements =
+      map (\p -> getAllMovements enemyPlayer p.location p.info.movements) enemyProtectedPieces
+        # foldl (<>) []
+        # filter locationInBounds
+
+    allPieceLocations = map (_.location) state.pieces
+
+    isPlayerWinning = all (_ == true) $ map (\loc -> elem loc allPieceLocations) enemyProtectedMovements
+    isEnemyWinning = all (_ == true) $ map (\loc -> elem loc allPieceLocations) playerProtectedMovements
+
+    gameOverState =
+      case isPlayerWinning, isEnemyWinning of
+        true, true -> Draw
+        true, false -> Winner player
+        false, true -> Winner enemyPlayer
+        false, false -> None
+  in
+    state { gameOverState = gameOverState }
+
 onTick :: (String -> Effect Unit) -> GameState -> Effect GameState
 onTick _ gameState = do
-  log $ show $ gameState.activeCapturedPieceIndex
+  log $ show $ gameState.debugString
   -- log $ "Tick: " <> show gameState.tickCount
 
   {--
@@ -431,6 +471,7 @@ onMouseDown _ { x, y } gameState =
         (pure gameState)
           <#> checkClickCapturedPanel
           <#> checkClickBoard
+          <#> checkGameOver
       else
         (pure gameState)
           <#> checkClickCapturedPanel
@@ -514,10 +555,6 @@ onMouseDown _ { x, y } gameState =
   placeCapturedPiece :: Location -> Int -> GameState -> GameState
   placeCapturedPiece clickLocation index state =
     let
-      locationInBounds :: Location -> Boolean
-      locationInBounds location =
-        elem location.row (0 .. (rows - 1)) && elem location.col (0 .. (cols - 1))
-
       mNewState = do
         capturedPiece <- state.capturedPieces !! index
         -- Assuming that we also cannot place a piece 
@@ -560,10 +597,6 @@ onMouseDown _ { x, y } gameState =
   movePiece :: Location -> Int -> GameState -> GameState
   movePiece clickLocation index state =
     let
-      locationInBounds :: Location -> Boolean
-      locationInBounds location =
-        elem location.row (0 .. (rows - 1)) && elem location.col (0 .. (cols - 1))
-
       mNewState = do
         piece <- state.pieces !! index
         possibleMovements <- pure $ getAllMovements state.player piece.location piece.info.movements # (filter locationInBounds)

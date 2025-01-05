@@ -5,7 +5,7 @@ import Prelude
 import CS150241Project.GameEngine (startNetworkGame)
 import CS150241Project.Graphics (clearCanvas, drawImageScaled, drawRect, drawRectOutline, drawText)
 import CS150241Project.Networking (Message, PlayerId(..))
-import Data.Array (all, deleteAt, elem, filter, find, findIndex, length, slice, updateAt, zipWith, (!!), (..))
+import Data.Array (all, deleteAt, elem, filter, findIndex, length, slice, updateAt, zipWith, (!!), (..))
 import Data.Either (Either(..))
 import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)

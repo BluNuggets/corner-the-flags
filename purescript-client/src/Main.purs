@@ -23,10 +23,10 @@ cols :: Int
 cols = 10
 
 rows :: Int
-rows = 8
+rows = 10
 
 actionsPerTurn :: Int
-actionsPerTurn = 100
+actionsPerTurn = 3
 
 capturedPieceGap :: Number
 capturedPieceGap = 10.0
@@ -239,7 +239,7 @@ initializeCapturedPanel =
 
 -- Board Definitions
 data PieceKind
-  = King
+  = Grail
   | Lance
   | Pawn
   | SlashLeft
@@ -274,7 +274,7 @@ type CapturedPiece =
 -- Also not in the type-class due to issues with the `fromString` function
 -- Nonetheless, this still adheres to OCP as it is easily extendable
 pieceKindToString :: PieceKind -> String
-pieceKindToString King = "King"
+pieceKindToString Grail = "Grail"
 pieceKindToString Lance = "Lance"
 pieceKindToString Pawn = "Pawn"
 pieceKindToString SlashRight = "SlashRight"
@@ -284,7 +284,7 @@ pieceKindToString Bow = "Bow"
 pieceKindToString Dagger = "Dagger"
 
 pieceKindFromString :: String -> Maybe PieceKind
-pieceKindFromString "King" = Just King
+pieceKindFromString "Grail" = Just Grail
 pieceKindFromString "Lance" = Just Lance
 pieceKindFromString "Pawn" = Just Pawn
 pieceKindFromString "SlashRight" = Just SlashRight
@@ -301,7 +301,7 @@ class Pieceable k where
   getImagePath :: k -> PlayerId -> String
 
 instance Pieceable PieceKind where
-  getPieceInfo King =
+  getPieceInfo Grail =
     let
       drs = ((-1) .. 1)
       dcs = ((-1) .. 1)
@@ -311,9 +311,9 @@ instance Pieceable PieceKind where
           # foldl (<>) []
           # filter (_ /= newLocation 0 0)
     in
-      { pieceKind: King
+      { pieceKind: Grail
       , movements
-      , isProtected: true
+      , isProtected: false
       }
   getPieceInfo Lance =
     let
@@ -348,7 +348,7 @@ instance Pieceable PieceKind where
     in
       { pieceKind: SlashRight
       , movements
-      , isProtected: false
+      , isProtected: true
       }
   getPieceInfo SlashLeft =
     let
@@ -362,7 +362,7 @@ instance Pieceable PieceKind where
     in
       { pieceKind: SlashLeft
       , movements
-      , isProtected: false
+      , isProtected: true
       }
   getPieceInfo Sword =
     let
@@ -376,6 +376,7 @@ instance Pieceable PieceKind where
       , movements
       , isProtected: false
       }
+  -- Note: It is intended that Bow and Dagger jump pieces
   getPieceInfo Bow =
     let
       movements =
@@ -416,8 +417,8 @@ instance Pieceable PieceKind where
   getImagePath Bow Player2 = "assets/black/bow.png"
   getImagePath Dagger Player1 = "assets/white/dagger.png"
   getImagePath Dagger Player2 = "assets/black/dagger.png"
-  getImagePath King Player1 = "assets/white/king.png"
-  getImagePath King Player2 = "assets/black/king.png"
+  getImagePath Grail Player1 = "assets/white/grail.png"
+  getImagePath Grail Player2 = "assets/black/grail.png"
   getImagePath Lance Player1 = "assets/white/lance.png"
   getImagePath Lance Player2 = "assets/black/lance.png"
   getImagePath Pawn Player1 = "assets/white/pawn.png"
@@ -436,8 +437,8 @@ imagePaths =
   , "assets/black/bow.png"
   , "assets/white/dagger.png"
   , "assets/black/dagger.png"
-  , "assets/white/king.png"
-  , "assets/black/king.png"
+  , "assets/white/grail.png"
+  , "assets/black/grail.png"
   , "assets/white/lance.png"
   , "assets/black/lance.png"
   , "assets/white/pawn.png"
@@ -609,33 +610,52 @@ initialState = do
   pieces <- pure $
     [
       -- Player 1
-      createPiece Pawn Player1 (newLocation 6 0)
-    , createPiece Pawn Player1 (newLocation 6 1)
-    , createPiece Pawn Player1 (newLocation 6 2)
-    , createPiece Pawn Player1 (newLocation 6 3)
-    , createPiece Pawn Player1 (newLocation 6 4)
-    , createPiece Pawn Player1 (newLocation 6 5)
-    , createPiece Pawn Player1 (newLocation 6 6)
-    , createPiece Pawn Player1 (newLocation 6 7)
-    , createPiece Lance Player1 (newLocation 7 2)
-    , createPiece King Player1 (newLocation 7 0)
-    , createPiece SlashRight Player1 (newLocation 5 0)
-    , createPiece SlashLeft Player1 (newLocation 5 7)
-    , createPiece Sword Player1 (newLocation 5 2)
-    , createPiece Bow Player1 (newLocation 5 4)
-    , createPiece Dagger Player1 (newLocation 5 3)
+      createPiece Pawn Player1 (newLocation 7 0)
+    , createPiece Pawn Player1 (newLocation 7 1)
+    , createPiece Pawn Player1 (newLocation 7 2)
+    , createPiece Pawn Player1 (newLocation 7 3)
+    , createPiece Pawn Player1 (newLocation 7 4)
+    , createPiece Pawn Player1 (newLocation 7 5)
+    , createPiece Pawn Player1 (newLocation 7 6)
+    , createPiece Pawn Player1 (newLocation 7 7)
+    , createPiece Pawn Player1 (newLocation 7 8)
+    , createPiece Pawn Player1 (newLocation 7 9)
+    , createPiece Lance Player1 (newLocation 8 4)
+    , createPiece Lance Player1 (newLocation 8 5)
+    , createPiece Dagger Player1 (newLocation 8 3)
+    , createPiece Dagger Player1 (newLocation 8 6)
+    , createPiece Sword Player1 (newLocation 8 2)
+    , createPiece Sword Player1 (newLocation 8 7)
+    , createPiece Grail Player1 (newLocation 9 2)
+    , createPiece Grail Player1 (newLocation 9 7)
+    , createPiece Bow Player1 (newLocation 9 3)
+    , createPiece Bow Player1 (newLocation 9 6)
+    , createPiece SlashRight Player1 (newLocation 9 0)
+    , createPiece SlashLeft Player1 (newLocation 9 9)
     ,
       -- Player 2
-      createPiece Pawn Player2 (newLocation 1 0)
-    , createPiece Pawn Player2 (newLocation 1 1)
-    , createPiece Pawn Player2 (newLocation 1 2)
-    , createPiece Pawn Player2 (newLocation 1 3)
-    , createPiece Pawn Player2 (newLocation 1 4)
-    , createPiece Pawn Player2 (newLocation 1 5)
-    , createPiece Pawn Player2 (newLocation 1 6)
-    , createPiece Pawn Player2 (newLocation 1 7)
-    , createPiece Lance Player2 (newLocation 0 2)
-    , createPiece King Player2 (newLocation 0 0)
+      createPiece Pawn Player2 (newLocation 2 0)
+    , createPiece Pawn Player2 (newLocation 2 1)
+    , createPiece Pawn Player2 (newLocation 2 2)
+    , createPiece Pawn Player2 (newLocation 2 3)
+    , createPiece Pawn Player2 (newLocation 2 4)
+    , createPiece Pawn Player2 (newLocation 2 5)
+    , createPiece Pawn Player2 (newLocation 2 6)
+    , createPiece Pawn Player2 (newLocation 2 7)
+    , createPiece Pawn Player2 (newLocation 2 8)
+    , createPiece Pawn Player2 (newLocation 2 9)
+    , createPiece Lance Player2 (newLocation 1 4)
+    , createPiece Lance Player2 (newLocation 1 5)
+    , createPiece Dagger Player2 (newLocation 1 3)
+    , createPiece Dagger Player2 (newLocation 1 6)
+    , createPiece Sword Player2 (newLocation 1 2)
+    , createPiece Sword Player2 (newLocation 1 7)
+    , createPiece Grail Player2 (newLocation 0 2)
+    , createPiece Grail Player2 (newLocation 0 7)
+    , createPiece Bow Player2 (newLocation 0 3)
+    , createPiece Bow Player2 (newLocation 0 6)
+    , createPiece SlashRight Player2 (newLocation 0 0)
+    , createPiece SlashLeft Player2 (newLocation 0 9)
     ]
 
   pure

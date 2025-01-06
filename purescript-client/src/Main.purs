@@ -26,7 +26,7 @@ rows :: Int
 rows = 8
 
 actionsPerTurn :: Int
-actionsPerTurn = 3
+actionsPerTurn = 100
 
 capturedPieceGap :: Number
 capturedPieceGap = 10.0
@@ -242,6 +242,11 @@ data PieceKind
   = King
   | Lance
   | Pawn
+  | SlashLeft
+  | SlashRight
+  | Sword
+  | Bow
+  | Dagger
 
 derive instance Generic PieceKind _
 
@@ -272,11 +277,21 @@ pieceKindToString :: PieceKind -> String
 pieceKindToString King = "King"
 pieceKindToString Lance = "Lance"
 pieceKindToString Pawn = "Pawn"
+pieceKindToString SlashRight = "SlashRight"
+pieceKindToString SlashLeft = "SlashLeft"
+pieceKindToString Sword = "Sword"
+pieceKindToString Bow = "Bow"
+pieceKindToString Dagger = "Dagger"
 
 pieceKindFromString :: String -> Maybe PieceKind
 pieceKindFromString "King" = Just King
 pieceKindFromString "Lance" = Just Lance
 pieceKindFromString "Pawn" = Just Pawn
+pieceKindFromString "SlashRight" = Just SlashRight 
+pieceKindFromString "SlashLeft" = Just SlashLeft 
+pieceKindFromString "Sword" = Just Sword 
+pieceKindFromString "Bow" = Just Bow
+pieceKindFromString "Dagger" = Just Dagger
 pieceKindFromString _ = Nothing
 
 -- The Type Class is largely unneccessary, but it was added anyways
@@ -321,6 +336,74 @@ instance Pieceable PieceKind where
       , movements
       , isProtected: false
       }
+  getPieceInfo SlashRight =
+    let
+      drs = ((-1) .. 1)
+      dcs = (0 .. 1)
+
+      movements =
+        map (\dr -> map (\dc -> newLocation dr dc) dcs) drs
+          # foldl (<>) []
+          # filter (_ /= newLocation 0 0)
+    in
+      { pieceKind: SlashRight
+      , movements
+      , isProtected: false
+      }
+  getPieceInfo SlashLeft =
+    let
+      drs = ((-1) .. 1)
+      dcs = ((-1) .. 0)
+
+      movements =
+        map (\dr -> map (\dc -> newLocation dr dc) dcs) drs
+          # foldl (<>) []
+          # filter (_ /= newLocation 0 0)
+    in
+      { pieceKind: SlashLeft
+      , movements
+      , isProtected: false
+      }
+  getPieceInfo Sword =
+    let
+      movements =
+        [ newLocation (-1) (-1)
+        , newLocation (-1) 0
+        , newLocation (-1) 1
+        ]
+    in
+      { pieceKind: Sword
+      , movements
+      , isProtected: false
+      }
+  getPieceInfo Bow =
+    let
+      movements =
+        [ newLocation (-1) (-1)
+        , newLocation (-1) 0
+        , newLocation (-2) 0
+        , newLocation (-1) 1
+        , newLocation 1 0
+        ]
+    in
+      { pieceKind: Bow
+      , movements
+      , isProtected: false
+      }
+  getPieceInfo Dagger =
+    let
+      movements =
+        [ newLocation (-1) 0
+        , newLocation 0 (-1)
+        , newLocation 0 1
+        , newLocation 1 0
+        , newLocation 2 0
+        ]
+    in
+      { pieceKind: Dagger
+      , movements
+      , isProtected: false
+      }
 
   createPiece pk player location =
     { info: getPieceInfo pk
@@ -332,6 +415,25 @@ instance Pieceable PieceKind where
   getImagePath King _ = "assets/lui_wink_ed.jpg"
   getImagePath Lance _ = "assets/lui_bright.jpg"
   getImagePath Pawn _ = "assets/lui_sword.jpg"
+  getImagePath SlashRight _ = "assets/Nagito_8bit.png"
+  getImagePath SlashLeft _ = "assets/Kokichi_8bit.png"
+  getImagePath Sword _ = "assets/Gundham_8bit.png"
+  getImagePath Bow _ = "assets/Chiaki_8bit.png"
+  getImagePath Dagger _ = "assets/Maki_8bit.png"
+
+--Temporary assets both below and above. I moved imagePaths here to easily double check what images we pass into startNetworkGame
+imagePaths :: Array String
+imagePaths =
+  [ "assets/lui_wink_ed.jpg"
+  , "assets/lui_sword.jpg"
+  , "assets/lui_bright.jpg"
+  , "assets/Chiaki_8bit.png"
+  , "assets/Gundham_8bit.png"
+  , "assets/Kokichi_8bit.png"
+  , "assets/Korekiyo_8bit.png"
+  , "assets/Maki_8bit.png"
+  , "assets/Nagito_8bit.png"
+  ]
 
 type Location =
   { row :: Int
@@ -500,7 +602,13 @@ initialState = do
     , createPiece Pawn Player1 (newLocation 6 5)
     , createPiece Pawn Player1 (newLocation 6 6)
     , createPiece Pawn Player1 (newLocation 6 7)
+    , createPiece Lance Player1 (newLocation 7 2)
     , createPiece King Player1 (newLocation 7 0)
+    , createPiece SlashRight Player1 (newLocation 5 0)
+    , createPiece SlashLeft Player1 (newLocation 5 7)
+    , createPiece Sword Player1 (newLocation 5 2)
+    , createPiece Bow Player1 (newLocation 5 4 )
+    , createPiece Dagger Player1 (newLocation 5 3)
     ,
       -- Player 2
       createPiece Pawn Player2 (newLocation 1 0)
@@ -511,6 +619,7 @@ initialState = do
     , createPiece Pawn Player2 (newLocation 1 5)
     , createPiece Pawn Player2 (newLocation 1 6)
     , createPiece Pawn Player2 (newLocation 1 7)
+    , createPiece Lance Player2 (newLocation 0 2)
     , createPiece King Player2 (newLocation 0 0)
     ]
 
@@ -1126,9 +1235,5 @@ main =
     , height
     , ipAddress: "localhost"
     , port: 15000
-    , imagePaths:
-        [ "assets/lui_wink_ed.jpg"
-        , "assets/lui_sword.jpg"
-        , "assets/lui_bright.jpg"
-        ]
+    , imagePaths
     }

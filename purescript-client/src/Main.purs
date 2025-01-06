@@ -27,7 +27,7 @@ rows = 10
 
 -- Multiple actions can be done per turn
 actionsPerTurn :: Int
-actionsPerTurn = 100
+actionsPerTurn = 3
 
 capturedPieceGap :: Number
 capturedPieceGap = 10.0

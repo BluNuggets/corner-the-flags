@@ -243,8 +243,8 @@ data PieceKind
   = Grail
   | Lance
   | Pawn
-  | CutLeft
-  | CutRight
+  | FlagLeft
+  | FlagRight
   | Sword
   | Bow
   | Dagger
@@ -278,8 +278,8 @@ pieceKindToString :: PieceKind -> String
 pieceKindToString Grail = "Grail"
 pieceKindToString Lance = "Lance"
 pieceKindToString Pawn = "Pawn"
-pieceKindToString CutRight = "CutRight"
-pieceKindToString CutLeft = "CutLeft"
+pieceKindToString FlagRight = "FlagRight"
+pieceKindToString FlagLeft = "FlagLeft"
 pieceKindToString Sword = "Sword"
 pieceKindToString Bow = "Bow"
 pieceKindToString Dagger = "Dagger"
@@ -288,8 +288,8 @@ pieceKindFromString :: String -> Maybe PieceKind
 pieceKindFromString "Grail" = Just Grail
 pieceKindFromString "Lance" = Just Lance
 pieceKindFromString "Pawn" = Just Pawn
-pieceKindFromString "CutRight" = Just CutRight
-pieceKindFromString "CutLeft" = Just CutLeft
+pieceKindFromString "FlagRight" = Just FlagRight
+pieceKindFromString "FlagLeft" = Just FlagLeft
 pieceKindFromString "Sword" = Just Sword
 pieceKindFromString "Bow" = Just Bow
 pieceKindFromString "Dagger" = Just Dagger
@@ -337,7 +337,7 @@ instance Pieceable PieceKind where
       , movements
       , isProtected: false
       }
-  getPieceInfo CutRight =
+  getPieceInfo FlagRight =
     let
       drs = ((-1) .. 1)
       dcs = (0 .. 1)
@@ -347,11 +347,11 @@ instance Pieceable PieceKind where
           # foldl (<>) []
           # filter (_ /= newLocation 0 0)
     in
-      { pieceKind: CutRight
+      { pieceKind: FlagRight
       , movements
       , isProtected: true
       }
-  getPieceInfo CutLeft =
+  getPieceInfo FlagLeft =
     let
       drs = ((-1) .. 1)
       dcs = ((-1) .. 0)
@@ -361,7 +361,7 @@ instance Pieceable PieceKind where
           # foldl (<>) []
           # filter (_ /= newLocation 0 0)
     in
-      { pieceKind: CutLeft
+      { pieceKind: FlagLeft
       , movements
       , isProtected: true
       }
@@ -424,10 +424,10 @@ instance Pieceable PieceKind where
   getImagePath Lance Player2 = "assets/black/lance.png"
   getImagePath Pawn Player1 = "assets/white/pawn.png"
   getImagePath Pawn Player2 = "assets/black/pawn.png"
-  getImagePath CutLeft Player1 = "assets/white/cut-left.png"
-  getImagePath CutLeft Player2 = "assets/black/cut-left.png"
-  getImagePath CutRight Player1 = "assets/white/cut-right.png"
-  getImagePath CutRight Player2 = "assets/black/cut-right.png"
+  getImagePath FlagLeft Player1 = "assets/white/flag-left.png"
+  getImagePath FlagLeft Player2 = "assets/black/flag-left.png"
+  getImagePath FlagRight Player1 = "assets/white/flag-right.png"
+  getImagePath FlagRight Player2 = "assets/black/flag-right.png"
   getImagePath Sword Player1 = "assets/white/sword.png"
   getImagePath Sword Player2 = "assets/black/sword.png"
 
@@ -444,10 +444,10 @@ imagePaths =
   , "assets/black/lance.png"
   , "assets/white/pawn.png"
   , "assets/black/pawn.png"
-  , "assets/white/cut-left.png"
-  , "assets/black/cut-left.png"
-  , "assets/white/cut-right.png"
-  , "assets/black/cut-right.png"
+  , "assets/white/flag-left.png"
+  , "assets/black/flag-left.png"
+  , "assets/white/flag-right.png"
+  , "assets/black/flag-right.png"
   , "assets/white/sword.png"
   , "assets/black/sword.png"
   ]
@@ -631,8 +631,8 @@ initialState = do
     , createPiece Grail Player1 (newLocation 9 7)
     , createPiece Bow Player1 (newLocation 9 3)
     , createPiece Bow Player1 (newLocation 9 6)
-    , createPiece CutRight Player1 (newLocation 9 0)
-    , createPiece CutLeft Player1 (newLocation 9 9)
+    , createPiece FlagRight Player1 (newLocation 9 0)
+    , createPiece FlagLeft Player1 (newLocation 9 9)
     ,
       -- Player 2
       createPiece Pawn Player2 (newLocation 2 0)
@@ -655,8 +655,8 @@ initialState = do
     , createPiece Grail Player2 (newLocation 0 7)
     , createPiece Bow Player2 (newLocation 0 3)
     , createPiece Bow Player2 (newLocation 0 6)
-    , createPiece CutRight Player2 (newLocation 0 0)
-    , createPiece CutLeft Player2 (newLocation 0 9)
+    , createPiece FlagRight Player2 (newLocation 0 0)
+    , createPiece FlagLeft Player2 (newLocation 0 9)
     ]
 
   pure

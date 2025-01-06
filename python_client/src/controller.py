@@ -55,8 +55,9 @@ class BoardGameController:
 
         # ---
 
-        # broadcast to other players if message originated from client
-        if self._networking is not None and player == self._model.player:
+        is_move_valid: bool = self._model.is_move_valid(old, new, player)
+        # broadcast to other players if message originated from client + if move is valid
+        if self._networking is not None and player == self._model.player and is_move_valid:
             message_content: MakeMoveGameMessageContentDict = {
                 'move_src': {'row': old.row, 'col': old.column},
                 'move_dest': {'row': new.row, 'col': new.column},
@@ -78,8 +79,9 @@ class BoardGameController:
 
         # ---
 
-        # broadcast to other players if message originated from client
-        if self._networking is not None and player == self._model.player:
+        is_place_valid: bool = self._model.is_place_valid(piece_kind, dest, player)
+        # broadcast to other players if message originated from client + if place is valid
+        if self._networking is not None and player == self._model.player and is_place_valid:
             message_content: PlacePieceGameMessageContentDict = {
                 'place_piece_kind': piece_kind,
                 'place_dest': {'row': dest.row, 'col': dest.column},

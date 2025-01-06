@@ -739,23 +739,19 @@ class BoardGameView:
         active_piece_index: Location | None = None
         active_capture_piece_index: int | None = None
 
-        previous_message: Message | None = None
-        latest_message: Message | None = None
-
         piece_to_check: Piece | None
 
         is_running: bool = True
 
         while is_running:
             if networking is not None:
+                latest_message: Message | None = None
                 for m in networking.recv():
                     latest_message = m
 
-                if latest_message is not None and previous_message != latest_message:
+                if latest_message is not None:
                     for observer in self._receive_message_observers:
                         observer.on_receive_message(latest_message)
-
-                    previous_message = latest_message
 
             for event in pygame.event.get():
                 match (event.type, self._game_status):

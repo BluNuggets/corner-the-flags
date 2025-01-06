@@ -1177,7 +1177,7 @@ class BoardGameView:
                     fb.place_piece_kind,
                     self._grid.get_position_from_location(fb.place_dest),
                     self._grid.cell_length,
-                    self._player,
+                    self._current_player,
                     fb.place_dest,
                     self._player,
                 )

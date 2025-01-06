@@ -59,7 +59,11 @@ class BoardGameController:
         # ---
 
         # broadcast to other players if message originated from client
-        if self._networking is not None and player == self._model.player and is_move_valid:
+        if (
+            self._networking is not None
+            and player == self._model.player
+            and is_move_valid
+        ):
             message_content: MakeMoveGameMessageContentDict = {
                 'move_src': {'row': old.row, 'col': old.column},
                 'move_dest': {'row': new.row, 'col': new.column},
@@ -85,7 +89,11 @@ class BoardGameController:
         # ---
 
         # broadcast to other players if message originated from client
-        if self._networking is not None and player == self._model.player and is_place_valid:
+        if (
+            self._networking is not None
+            and player == self._model.player
+            and is_place_valid
+        ):
             message_content: PlacePieceGameMessageContentDict = {
                 'place_piece_kind': piece_kind,
                 'place_dest': {'row': dest.row, 'col': dest.column},
@@ -232,8 +240,12 @@ class GameMessageFactory:
 
         # extract keys from GameMessage
         # note: has a chance for uncaught errors if data doesn't throw an exception but is not of type GameMessageDict
-        message_type: GameMessageType = data['message_type']
-        message_content: GameMessageContentDict = data['message_content']
+        if 'message_type' not in data or 'message_content' not in data:
+            message_type: GameMessageType = GameMessageType.INVALID
+            message_content: GameMessageContentDict = {}
+        else:
+            message_type = data['message_type']
+            message_content = data['message_content']
 
         # make message content based on message type
         match message_type:

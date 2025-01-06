@@ -682,6 +682,14 @@ class BoardGameView:
         self._piece_factory = BoardPieceDefaultFactory()
         self._capture_box = CaptureBox(self._font, state.player)
 
+        # create observers for controller
+        self._move_piece_observers = []
+        self._place_piece_observers = []
+        self._receive_message_observers = []
+
+        self.init_state(state)
+
+    def init_state(self, state: GameState):
         # state variables
         self._current_player = state.player_to_move
         self._player = state.player
@@ -698,11 +706,6 @@ class BoardGameView:
             self._player,
         )
         self._setup_position(state)
-
-        # create observers for controller
-        self._move_piece_observers = []
-        self._place_piece_observers = []
-        self._receive_message_observers = []
 
         # mouse functionality variables
         self._active_cell_to_snap = None

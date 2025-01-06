@@ -1,5 +1,4 @@
 from __future__ import annotations
-import json
 from math import ceil
 import os
 import pygame
@@ -9,7 +8,6 @@ import sys
 from typing import Generator, NoReturn, Protocol, Mapping
 from cs150241project_networking import CS150241ProjectNetworking, Message
 from project_types import (
-    PlacePieceGameMessageContentDict,
     Player,
     PieceKind,
     Location,
@@ -19,9 +17,6 @@ from project_types import (
     MoveFeedbackInfo,
     PlaceFeedback,
     PlaceFeedbackInfo,
-    GameMessageType,
-    GameMessageDict,
-    MakeMoveGameMessageContentDict,
     GameStatus,
 )
 # import random
@@ -1011,7 +1006,6 @@ class BoardGameView:
                                             old_cell_location,
                                             new_cell_location,
                                             self._player,
-                                            networking,
                                         )
 
                                     # point active piece index to nothing
@@ -1041,7 +1035,6 @@ class BoardGameView:
                                             cap_piece.piece_kind,
                                             new_cell_location,
                                             self._player,
-                                            networking,
                                         )
 
                                     active_capture_piece_index = None
@@ -1139,49 +1132,18 @@ class BoardGameView:
         return
 
     # --- MARK: Piece Movements
-    def _move_piece(
-        self,
-        old: Location,
-        new: Location,
-        player: Player,
-        networking: CS150241ProjectNetworking | None,
-    ) -> None:
+    def _move_piece(self, old: Location, new: Location, player: Player) -> None:
         for observer in self._move_piece_observers:
             observer.on_move_piece(old, new, player)
-
-        if networking is not None:
-            message_content: MakeMoveGameMessageContentDict = {
-                'move_src': {'row': old.row, 'col': old.column},
-                'move_dest': {'row': new.row, 'col': new.column},
-            }
-
-            data: GameMessageDict = {
-                'message_type': GameMessageType.MOVE,
-                'message_content': message_content,
-            }
-            networking.send(json.dumps(data))
 
     def _place_piece(
         self,
         piece_kind: PieceKind,
         dest: Location,
         player: Player,
-        networking: CS150241ProjectNetworking | None,
     ) -> None:
         for observer in self._place_piece_observers:
             observer.on_place_piece(piece_kind, dest, player)
-
-        if networking is not None:
-            message_content: PlacePieceGameMessageContentDict = {
-                'place_piece_kind': piece_kind,
-                'place_dest': {'row': dest.row, 'col': dest.column},
-            }
-
-            data: GameMessageDict = {
-                'message_type': GameMessageType.PLACE,
-                'message_content': message_content,
-            }
-            networking.send(json.dumps(data))
 
     def update_move(self, fb: MoveFeedback) -> None:
         active_piece: Piece = self._pieces[fb.move_src]

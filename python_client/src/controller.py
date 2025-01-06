@@ -8,6 +8,8 @@ from project_types import (
     Location,
     GameState,
     LocationDict,
+    MakeMoveGameMessageContentDict,
+    PlacePieceGameMessageContentDict,
     Player,
     PieceKind,
     MoveFeedback,
@@ -58,6 +60,22 @@ class BoardGameController:
         )
         self._view.update_move(feedback)
 
+        # ---
+
+        # broadcast to other players if message originated from client
+        if self._networking is not None and player == self._model.player:
+            message_content: MakeMoveGameMessageContentDict = {
+                'move_src': {'row': old.row, 'col': old.column},
+                'move_dest': {'row': new.row, 'col': new.column},
+            }
+
+            data: GameMessageDict = {
+                'message_type': GameMessageType.MOVE,
+                'message_content': message_content,
+            }
+
+            self._networking.send(json.dumps(data))
+
     def on_place_piece(
         self, piece_kind: PieceKind, dest: Location, player: Player
     ) -> None:
@@ -67,6 +85,21 @@ class BoardGameController:
             f'model says that the place is {"Valid" if feedback.info == PlaceFeedbackInfo.VALID else "Invalid"}'
         )
         self._view.update_place(feedback)
+
+        # ---
+
+        # broadcast to other players if message originated from client
+        if self._networking is not None and player == self._model.player:
+            message_content: PlacePieceGameMessageContentDict = {
+                'place_piece_kind': piece_kind,
+                'place_dest': {'row': dest.row, 'col': dest.column},
+            }
+
+            data: GameMessageDict = {
+                'message_type': GameMessageType.PLACE,
+                'message_content': message_content,
+            }
+            self._networking.send(json.dumps(data))
 
     def on_receive_message(self, message: Message) -> None:
         if self._networking is not None:

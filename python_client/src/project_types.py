@@ -217,7 +217,7 @@ class GameMessageType(StrEnum):
 
 class LocationDict(TypedDict):
     row: int
-    column: int
+    col: int
 
 
 class GameMessageContentDict(TypedDict, total=False):

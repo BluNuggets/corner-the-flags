@@ -1117,8 +1117,8 @@ class BoardGameView:
 
         if networking is not None:
             message_content: MakeMoveGameMessageContentDict = {
-                'move_src': {'row': old.row, 'column': old.column},
-                'move_dest': {'row': new.row, 'column': new.column},
+                'move_src': {'row': old.row, 'col': old.column},
+                'move_dest': {'row': new.row, 'col': new.column},
             }
 
             data: GameMessageDict = {
@@ -1141,7 +1141,7 @@ class BoardGameView:
         if networking is not None:
             message_content: PlacePieceGameMessageContentDict = {
                 'place_piece_kind': piece_kind,
-                'place_dest': {'row': dest.row, 'column': dest.column},
+                'place_dest': {'row': dest.row, 'col': dest.column},
             }
 
             data: GameMessageDict = {

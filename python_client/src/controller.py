@@ -147,14 +147,14 @@ class GameMessageContent:
         value: LocationDict | None = self._dict.get('move_src', None)
 
         if value:
-            return Location(value['row'], value['column'])
+            return Location(value['row'], value['col'])
 
     @property
     def move_dest(self) -> Location | None:
         value: LocationDict | None = self._dict.get('move_dest', None)
 
         if value:
-            return Location(value['row'], value['column'])
+            return Location(value['row'], value['col'])
 
     @property
     def place_piece_kind(self) -> PieceKind | None:
@@ -165,7 +165,7 @@ class GameMessageContent:
         value: LocationDict | None = self._dict.get('place_dest', None)
 
         if value:
-            return Location(value['row'], value['column'])
+            return Location(value['row'], value['col'])
 
 
 class GameMessage:

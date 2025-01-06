@@ -304,7 +304,7 @@ class ProtectedPiece:
 
     def move(self, dest: Location) -> None:
         if not self.can_move(dest):
-            raise ValueError(f'Error: RegularPiece cannot move to square {dest}')
+            raise ValueError(f'Error: ProtectedPiece cannot move to square {dest}')
 
         self._location = copy.copy(dest)
 

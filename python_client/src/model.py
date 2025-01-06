@@ -22,17 +22,27 @@ class Movement(Protocol):
     def get_deltas(self) -> set[Location]: ...
 
 
-class PlayerOnePawnMovement:
+# Pawn
+class PawnMovement:
+    _player: Player
+
+    def __init__(self, player: Player):
+        self._player = player
+
+    @property
+    def _forward(self) -> int:
+        match self._player:
+            case Player.PLAYER_1:
+                return 1
+            case Player.PLAYER_2:
+                return -1
+
     def get_deltas(self) -> set[Location]:
-        return {Location(1, 0)}
+        return {Location(self._forward, 0)}
 
 
-class PlayerTwoPawnMovement:
-    def get_deltas(self) -> set[Location]:
-        return {Location(-1, 0)}
-
-
-class KingMovement:
+# Grail
+class GrailMovement:
     def get_deltas(self) -> set[Location]:
         return {
             Location(dr, dc)
@@ -42,9 +52,141 @@ class KingMovement:
         }
 
 
+# Lance
 class LanceMovement:
     def get_deltas(self) -> set[Location]:
         return {Location(dr, dc) for dr in [-1, 1] for dc in [-1, 1]}
+
+
+# Flag Left/Right
+class FlagLeftMovement:
+    _player: Player
+
+    def __init__(self, player: Player):
+        self._player = player
+
+    @property
+    def _forward(self) -> int:
+        match self._player:
+            case Player.PLAYER_1:
+                return 1
+            case Player.PLAYER_2:
+                return -1
+
+    @property
+    def _abs_left(self) -> int:
+        return -1
+
+    def get_deltas(self) -> set[Location]:
+        return {
+            Location(dr, dc)
+            for (dr, dc) in [
+                (1, 0),
+                (-1, 0),
+                (self._forward, self._abs_left),
+                (0, self._abs_left),
+            ]
+        }
+
+
+class FlagRightMovement:
+    _player: Player
+
+    def __init__(self, player: Player):
+        self._player = player
+
+    @property
+    def _forward(self) -> int:
+        match self._player:
+            case Player.PLAYER_1:
+                return 1
+            case Player.PLAYER_2:
+                return -1
+
+    @property
+    def _abs_right(self) -> int:
+        return 1
+
+    def get_deltas(self) -> set[Location]:
+        return {
+            Location(dr, dc)
+            for (dr, dc) in [
+                (1, 0),
+                (-1, 0),
+                (self._forward, self._abs_right),
+                (0, self._abs_right),
+            ]
+        }
+
+
+class SwordMovement:
+    _player: Player
+
+    def __init__(self, player: Player):
+        self._player = player
+
+    @property
+    def _forward(self) -> int:
+        match self._player:
+            case Player.PLAYER_1:
+                return 1
+            case Player.PLAYER_2:
+                return -1
+
+    def get_deltas(self) -> set[Location]:
+        return {Location(self._forward, dc) for dc in [-1, 0, 1]}
+
+
+class BowMovement:
+    _player: Player
+
+    def __init__(self, player: Player):
+        self._player = player
+
+    @property
+    def _forward(self) -> int:
+        match self._player:
+            case Player.PLAYER_1:
+                return 1
+            case Player.PLAYER_2:
+                return -1
+
+    @property
+    def _backward(self) -> int:
+        match self._player:
+            case Player.PLAYER_1:
+                return -1
+            case Player.PLAYER_2:
+                return 1
+
+    def get_deltas(self) -> set[Location]:
+        return {Location(self._forward, dc) for dc in [-1, 0, 1]}.union(
+            {
+                Location(dr, dc)
+                for (dr, dc) in [(2 * self._forward, 0), (self._backward, 0)]
+            }
+        )
+
+
+class DaggerMovement:
+    _player: Player
+
+    def __init__(self, player: Player):
+        self._player = player
+
+    @property
+    def _backward(self) -> int:
+        match self._player:
+            case Player.PLAYER_1:
+                return -1
+            case Player.PLAYER_2:
+                return 1
+
+    def get_deltas(self) -> set[Location]:
+        return {
+            Location(dr, dc)
+            for (dr, dc) in [(0, -1), (0, 1), (-1, 0), (1, 0), (2 * self._backward, 0)]
+        }
 
 
 # --- MARK: Piece
@@ -182,19 +324,27 @@ class BoardGamePieceFactory:
     def make(cls, player: Player, piece_kind: PieceKind, location: Location) -> Piece:
         match piece_kind:
             case PieceKind.PAWN:
-                match player:
-                    case Player.PLAYER_1:
-                        return RegularPiece(
-                            player, PieceKind.PAWN, location, PlayerOnePawnMovement()
-                        )
-                    case Player.PLAYER_2:
-                        return RegularPiece(
-                            player, PieceKind.PAWN, location, PlayerTwoPawnMovement()
-                        )
-            case PieceKind.KING:
-                return ProtectedPiece(player, PieceKind.KING, location, KingMovement())
+                return RegularPiece(player, piece_kind, location, PawnMovement(player))
+            case PieceKind.GRAIL:
+                return RegularPiece(player, piece_kind, location, GrailMovement())
             case PieceKind.LANCE:
-                return RegularPiece(player, PieceKind.LANCE, location, LanceMovement())
+                return RegularPiece(player, piece_kind, location, LanceMovement())
+            case PieceKind.FLAG_LEFT:
+                return ProtectedPiece(
+                    player, piece_kind, location, FlagLeftMovement(player)
+                )
+            case PieceKind.FLAG_RIGHT:
+                return ProtectedPiece(
+                    player, piece_kind, location, FlagRightMovement(player)
+                )
+            case PieceKind.SWORD:
+                return RegularPiece(player, piece_kind, location, SwordMovement(player))
+            case PieceKind.BOW:
+                return RegularPiece(player, piece_kind, location, BowMovement(player))
+            case PieceKind.DAGGER:
+                return RegularPiece(
+                    player, piece_kind, location, DaggerMovement(player)
+                )
 
 
 # --- MARK: PiecePositions
@@ -208,27 +358,57 @@ class BoardGamePiecePositions:
     def get_positions(self) -> dict[Location, tuple[Player, PieceKind]]:
         return {
             # Player 1
-            Location(2, 1): (Player.PLAYER_1, PieceKind.PAWN),
+            ### Row 1
+            Location(1, 1): (Player.PLAYER_1, PieceKind.FLAG_RIGHT),
+            Location(1, 3): (Player.PLAYER_1, PieceKind.GRAIL),
+            Location(1, 4): (Player.PLAYER_1, PieceKind.BOW),
+            Location(1, 7): (Player.PLAYER_1, PieceKind.BOW),
+            Location(1, 8): (Player.PLAYER_1, PieceKind.GRAIL),
+            Location(1, 10): (Player.PLAYER_1, PieceKind.FLAG_LEFT),
+            ### Row 2
+            Location(2, 3): (Player.PLAYER_1, PieceKind.SWORD),
+            Location(2, 4): (Player.PLAYER_1, PieceKind.DAGGER),
+            Location(2, 5): (Player.PLAYER_1, PieceKind.LANCE),
+            Location(2, 6): (Player.PLAYER_1, PieceKind.LANCE),
+            Location(2, 7): (Player.PLAYER_1, PieceKind.DAGGER),
+            Location(2, 8): (Player.PLAYER_1, PieceKind.SWORD),
+            ### Row 3
+            Location(3, 1): (Player.PLAYER_1, PieceKind.PAWN),
             Location(3, 2): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 3): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 4): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 5): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 6): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 7): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(2, 8): (Player.PLAYER_1, PieceKind.PAWN),
-            Location(1, 3): (Player.PLAYER_1, PieceKind.LANCE),
-            Location(1, 2): (Player.PLAYER_1, PieceKind.LANCE),
-            Location(1, 1): (Player.PLAYER_1, PieceKind.KING),
+            Location(3, 3): (Player.PLAYER_1, PieceKind.PAWN),
+            Location(3, 4): (Player.PLAYER_1, PieceKind.PAWN),
+            Location(3, 5): (Player.PLAYER_1, PieceKind.PAWN),
+            Location(3, 6): (Player.PLAYER_1, PieceKind.PAWN),
+            Location(3, 7): (Player.PLAYER_1, PieceKind.PAWN),
+            Location(3, 8): (Player.PLAYER_1, PieceKind.PAWN),
+            Location(3, 9): (Player.PLAYER_1, PieceKind.PAWN),
+            Location(3, 10): (Player.PLAYER_1, PieceKind.PAWN),
             # Player 2
-            Location(7, 1): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 2): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 3): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 4): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 5): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 6): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 7): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(7, 8): (Player.PLAYER_2, PieceKind.PAWN),
-            Location(8, 1): (Player.PLAYER_2, PieceKind.KING),
+            ### Row 8
+            Location(8, 1): (Player.PLAYER_2, PieceKind.PAWN),
+            Location(8, 2): (Player.PLAYER_2, PieceKind.PAWN),
+            Location(8, 3): (Player.PLAYER_2, PieceKind.PAWN),
+            Location(8, 4): (Player.PLAYER_2, PieceKind.PAWN),
+            Location(8, 5): (Player.PLAYER_2, PieceKind.PAWN),
+            Location(8, 6): (Player.PLAYER_2, PieceKind.PAWN),
+            Location(8, 7): (Player.PLAYER_2, PieceKind.PAWN),
+            Location(8, 8): (Player.PLAYER_2, PieceKind.PAWN),
+            Location(8, 9): (Player.PLAYER_2, PieceKind.PAWN),
+            Location(8, 10): (Player.PLAYER_2, PieceKind.PAWN),
+            ### Row 9
+            Location(9, 3): (Player.PLAYER_2, PieceKind.SWORD),
+            Location(9, 4): (Player.PLAYER_2, PieceKind.DAGGER),
+            Location(9, 5): (Player.PLAYER_2, PieceKind.LANCE),
+            Location(9, 6): (Player.PLAYER_2, PieceKind.LANCE),
+            Location(9, 7): (Player.PLAYER_2, PieceKind.DAGGER),
+            Location(9, 8): (Player.PLAYER_2, PieceKind.SWORD),
+            ### Row 10
+            Location(10, 1): (Player.PLAYER_2, PieceKind.FLAG_RIGHT),
+            Location(10, 3): (Player.PLAYER_2, PieceKind.GRAIL),
+            Location(10, 4): (Player.PLAYER_2, PieceKind.BOW),
+            Location(10, 7): (Player.PLAYER_2, PieceKind.BOW),
+            Location(10, 8): (Player.PLAYER_2, PieceKind.GRAIL),
+            Location(10, 10): (Player.PLAYER_2, PieceKind.FLAG_LEFT),
         }
 
 
@@ -366,7 +546,7 @@ class BoardGameModel:
     @classmethod
     def setup_game(cls, player_id: PlayerId) -> BoardGameModel:
         MAX_MOVES: int = 3
-        board: Board = Board(8, 8)
+        board: Board = Board(10, 10)
         captured_pieces: dict[Player, dict[PieceKind, int]] = {
             Player.PLAYER_1: {},
             Player.PLAYER_2: {},

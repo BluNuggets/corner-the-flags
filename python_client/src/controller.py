@@ -53,8 +53,9 @@ class BoardGameController:
         is_move_valid: bool = self._model.is_move_valid(old, new, player)
 
         feedback: MoveFeedback = self._model.move_piece(old, new, player)
-        self._on_state_change(self._model)
         self._view.update_move(feedback)
+        self._on_state_change(self._model)
+        
 
         # ---
 
@@ -83,8 +84,9 @@ class BoardGameController:
         is_place_valid: bool = self._model.is_place_valid(piece_kind, dest, player)
 
         feedback: PlaceFeedback = self._model.place_piece(piece_kind, dest, player)
-        self._on_state_change(self._model)
         self._view.update_place(feedback)
+        self._on_state_change(self._model)
+        
 
         # ---
 

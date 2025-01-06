@@ -1099,7 +1099,7 @@ class BoardGameView:
     def _render_game_details(self) -> None:
         # current player (and client player)
         player_render: Surface = self._font.render(
-            f"Current Player: {self._current_player} ({"You" if self._current_player == self._player else "Opponent" })",
+            f'Current Player: {self._current_player} ({"You" if self._current_player == self._player else "Opponent" })',
             True,
             'white',
         )

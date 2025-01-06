@@ -54,7 +54,7 @@ class BoardGameController:
         feedback: MoveFeedback = self._model.move_piece(old, new, player)
         self._on_state_change(self._model)
         print(
-            f"model says that the move is {"Valid" if feedback.info == MoveFeedbackInfo.VALID else "Invalid"}"
+            f'model says that the move is {"Valid" if feedback.info == MoveFeedbackInfo.VALID else "Invalid"}'
         )
         self._view.update_move(feedback)
 
@@ -64,7 +64,7 @@ class BoardGameController:
         feedback: PlaceFeedback = self._model.place_piece(piece_kind, dest, player)
         self._on_state_change(self._model)
         print(
-            f"model says that the place is {"Valid" if feedback.info == PlaceFeedbackInfo.VALID else "Invalid"}"
+            f'model says that the place is {"Valid" if feedback.info == PlaceFeedbackInfo.VALID else "Invalid"}'
         )
         self._view.update_place(feedback)
 

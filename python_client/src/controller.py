@@ -59,7 +59,11 @@ class BoardGameController:
         # ---
 
         # broadcast to other players if message originated from client
-        if self._networking is not None and player == self._model.player and is_move_valid:
+        if (
+            self._networking is not None
+            and player == self._model.player
+            and is_move_valid
+        ):
             message_content: MakeMoveGameMessageContentDict = {
                 'move_src': {'row': old.row, 'col': old.column},
                 'move_dest': {'row': new.row, 'col': new.column},
@@ -85,7 +89,11 @@ class BoardGameController:
         # ---
 
         # broadcast to other players if message originated from client
-        if self._networking is not None and player == self._model.player and is_place_valid:
+        if (
+            self._networking is not None
+            and player == self._model.player
+            and is_place_valid
+        ):
             message_content: PlacePieceGameMessageContentDict = {
                 'place_piece_kind': piece_kind,
                 'place_dest': {'row': dest.row, 'col': dest.column},
@@ -148,7 +156,7 @@ class BoardGameController:
                             player,
                         )
                     case GameMessageType.INVALID:
-                        pass
+                        return
 
     def _on_state_change(self, state: GameState) -> None:
         for observer in self._game_state_observers:
@@ -224,25 +232,40 @@ class GameMessageFactory:
         try:
             data: GameMessageDict = json.loads(data_raw)
         except json.JSONDecodeError:
-            raise RuntimeError(
-                'Error: JSON string does not follow the GameMessageDict format.'
+            return GameMessage(
+                GameMessageType.INVALID,
+                GameMessageContent()
             )
         except Exception:
-            raise RuntimeError('Error: Unhandled exception in parsing JSON string.')
+            return GameMessage(
+                GameMessageType.INVALID,
+                GameMessageContent()
+            )
 
-        # extract keys from GameMessage
-        # note: has a chance for uncaught errors if data doesn't throw an exception but is not of type GameMessageDict
-        message_type: GameMessageType = data['message_type']
-        message_content: GameMessageContentDict = data['message_content']
+        try:
+            # extract keys from GameMessage
+            # note: has a chance for uncaught errors if data doesn't throw an exception but is not of type GameMessageDict
+            if 'message_type' not in data or 'message_content' not in data:
+                message_type: GameMessageType = GameMessageType.INVALID
+                message_content: GameMessageContentDict = {}
+            else:
+                message_type = data['message_type']
+                message_content = data['message_content']
 
-        # make message content based on message type
-        match message_type:
-            case GameMessageType.INVALID:
-                raise RuntimeError(
-                    'Error: Value of message_type does not correspond to a valid message type.'
-                )
-            case _:
-                return GameMessage(
-                    message_type,
-                    GameMessageContent(message_content),
-                )
+            # make message content based on message type
+            match message_type:
+                case GameMessageType.INVALID:
+                    return GameMessage(
+                        GameMessageType.INVALID,
+                        GameMessageContent()
+                    )
+                case _:
+                    return GameMessage(
+                        message_type,
+                        GameMessageContent(message_content),
+                    )
+        except:
+            return GameMessage(
+                GameMessageType.INVALID,
+                GameMessageContent()
+            )

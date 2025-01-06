@@ -4,8 +4,11 @@
 
 This project has a Python client and a PureScript client. To start a game, connect two of either client to a server.
 
+
 > [!CAUTION]
 > Neither client currently sends an initial message containing initial board dimensions and piece positions. Thus, clients that have different board states upon connecting to a room will not be able to sync with each other.
+
+## [Video Documentation](https://drive.google.com/file/d/1HqUJLvEc83eEPkEk4nGMUcINzc3onKbP/view?usp=sharing)
 
 ## Python Client
 

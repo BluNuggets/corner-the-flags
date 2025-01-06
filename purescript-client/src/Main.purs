@@ -816,7 +816,7 @@ onMouseDown send { x, y } gameState =
         map isClickingCapturedPiece state.capturedPanel.capturedPieceSlots
           # findIndex (_ == true)
     in
-      if mIndex /= state.activeCapturedPieceIndex then
+      if isSamePlayer state.player state.currentPlayer && mIndex /= state.activeCapturedPieceIndex then
         case mIndex of
           Just index ->
             case state.capturedPieces !! (pageOffset + index) of

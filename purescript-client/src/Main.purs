@@ -20,7 +20,7 @@ import Graphics.Canvas as Canvas
 import Simple.JSON as JSON
 
 cols :: Int
-cols = 8
+cols = 10
 
 rows :: Int
 rows = 8
@@ -287,9 +287,9 @@ pieceKindFromString :: String -> Maybe PieceKind
 pieceKindFromString "King" = Just King
 pieceKindFromString "Lance" = Just Lance
 pieceKindFromString "Pawn" = Just Pawn
-pieceKindFromString "SlashRight" = Just SlashRight 
-pieceKindFromString "SlashLeft" = Just SlashLeft 
-pieceKindFromString "Sword" = Just Sword 
+pieceKindFromString "SlashRight" = Just SlashRight
+pieceKindFromString "SlashLeft" = Just SlashLeft
+pieceKindFromString "Sword" = Just Sword
 pieceKindFromString "Bow" = Just Bow
 pieceKindFromString "Dagger" = Just Dagger
 pieceKindFromString _ = Nothing
@@ -412,27 +412,42 @@ instance Pieceable PieceKind where
     }
 
   -- This additionally allows separate images for different players
-  getImagePath King _ = "assets/lui_wink_ed.jpg"
-  getImagePath Lance _ = "assets/lui_bright.jpg"
-  getImagePath Pawn _ = "assets/lui_sword.jpg"
-  getImagePath SlashRight _ = "assets/Nagito_8bit.png"
-  getImagePath SlashLeft _ = "assets/Kokichi_8bit.png"
-  getImagePath Sword _ = "assets/Gundham_8bit.png"
-  getImagePath Bow _ = "assets/Chiaki_8bit.png"
-  getImagePath Dagger _ = "assets/Maki_8bit.png"
+  getImagePath Bow Player1 = "assets/white/bow.png"
+  getImagePath Bow Player2 = "assets/black/bow.png"
+  getImagePath Dagger Player1 = "assets/white/dagger.png"
+  getImagePath Dagger Player2 = "assets/black/dagger.png"
+  getImagePath King Player1 = "assets/white/king.png"
+  getImagePath King Player2 = "assets/black/king.png"
+  getImagePath Lance Player1 = "assets/white/lance.png"
+  getImagePath Lance Player2 = "assets/black/lance.png"
+  getImagePath Pawn Player1 = "assets/white/pawn.png"
+  getImagePath Pawn Player2 = "assets/black/pawn.png"
+  getImagePath SlashLeft Player1 = "assets/white/slash-left.png"
+  getImagePath SlashLeft Player2 = "assets/black/slash-left.png"
+  getImagePath SlashRight Player1 = "assets/white/slash-right.png"
+  getImagePath SlashRight Player2 = "assets/black/slash-right.png"
+  getImagePath Sword Player1 = "assets/white/sword.png"
+  getImagePath Sword Player2 = "assets/black/sword.png"
 
 --Temporary assets both below and above. I moved imagePaths here to easily double check what images we pass into startNetworkGame
 imagePaths :: Array String
 imagePaths =
-  [ "assets/lui_wink_ed.jpg"
-  , "assets/lui_sword.jpg"
-  , "assets/lui_bright.jpg"
-  , "assets/Chiaki_8bit.png"
-  , "assets/Gundham_8bit.png"
-  , "assets/Kokichi_8bit.png"
-  , "assets/Korekiyo_8bit.png"
-  , "assets/Maki_8bit.png"
-  , "assets/Nagito_8bit.png"
+  [ "assets/white/bow.png"
+  , "assets/black/bow.png"
+  , "assets/white/dagger.png"
+  , "assets/black/dagger.png"
+  , "assets/white/king.png"
+  , "assets/black/king.png"
+  , "assets/white/lance.png"
+  , "assets/black/lance.png"
+  , "assets/white/pawn.png"
+  , "assets/black/pawn.png"
+  , "assets/white/slash-left.png"
+  , "assets/black/slash-left.png"
+  , "assets/white/slash-right.png"
+  , "assets/black/slash-right.png"
+  , "assets/white/sword.png"
+  , "assets/black/sword.png"
   ]
 
 type Location =
@@ -607,7 +622,7 @@ initialState = do
     , createPiece SlashRight Player1 (newLocation 5 0)
     , createPiece SlashLeft Player1 (newLocation 5 7)
     , createPiece Sword Player1 (newLocation 5 2)
-    , createPiece Bow Player1 (newLocation 5 4 )
+    , createPiece Bow Player1 (newLocation 5 4)
     , createPiece Dagger Player1 (newLocation 5 3)
     ,
       -- Player 2

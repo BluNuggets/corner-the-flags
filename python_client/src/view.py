@@ -109,7 +109,8 @@ class Piece(Sprite):
         super().__init__()
         self._piece_kind = piece_kind
         self._location = location
-        self.image = pygame.transform.scale(image.get_sprite(), (size, size))
+        self._owned_by = owned_by
+        self.image = pygame.transform.scale(image.get_sprite(self._owned_by), (size, size))
         self._position = position
         self._last_stable_position = self._position
         self._size = size
@@ -119,8 +120,7 @@ class Piece(Sprite):
             self._size,
             self._size,
         )
-        self._owned_by = owned_by
-
+        
     @property
     def piece_kind(self) -> PieceKind:
         return self._piece_kind
@@ -341,7 +341,7 @@ class CapturedPiece(Sprite):
     _image: Surface
 
     def __init__(
-        self, piece: PieceKind, image: SpriteImage, position: Position, size: int
+        self, piece: PieceKind, image: SpriteImage, position: Position, size: int, owned_by: Player
     ):
         super().__init__()
         self._piece_kind = piece
@@ -355,7 +355,7 @@ class CapturedPiece(Sprite):
 
         self._position = position
         self._last_stable_position = position
-        self.image = pygame.transform.scale(image.get_sprite(), (size, size))
+        self.image = pygame.transform.scale(image.get_sprite(owned_by), (size, size))
 
     @property
     def piece_kind(self) -> PieceKind:
@@ -512,6 +512,7 @@ class CaptureBox:
                     ),
                 ),
                 int(self._width * 0.5),
+                self._player
             )
         )
 
@@ -577,24 +578,72 @@ class GameStateObserver(Protocol):
 
 # --- MARK: Sprite
 class SpriteImage(Protocol):
-    def get_sprite(self) -> Surface: ...
+    def get_sprite(self, player: Player) -> Surface: ...
 
 
-class PawnSprite(SpriteImage):
-    def get_sprite(self) -> Surface:
-        return pygame.image.load(os.path.join('src', 'assets', 'Empyrea_Prayge.png'))
+class PawnSprite:
+    def get_sprite(self, player: Player) -> Surface:
+        match player:
+            case Player.PLAYER_1:
+                return pygame.image.load(os.path.join('src', 'assets', 'white', 'pawn.png'))
+            case Player.PLAYER_2:
+                return pygame.image.load(os.path.join('src', 'assets', 'black', 'pawn.png'))
 
+class LanceSprite:
+    def get_sprite(self, player: Player) -> Surface:
+        match player:
+            case Player.PLAYER_1:
+                return pygame.image.load(os.path.join('src', 'assets', 'white', 'lance.png'))
+            case Player.PLAYER_2:
+                return pygame.image.load(os.path.join('src', 'assets', 'black', 'lance.png'))
 
-class LanceSprite(SpriteImage):
-    def get_sprite(self) -> Surface:
-        return pygame.image.load(os.path.join('src', 'assets', 'lui_bright.jpg'))
-
-
-class KingSprite(SpriteImage):
-    def get_sprite(self) -> Surface:
-        return pygame.image.load(os.path.join('src', 'assets', 'lui_wink_ed.jpg'))
-
-
+class GrailSprite:
+    def get_sprite(self, player: Player) -> Surface:
+        match player:
+            case Player.PLAYER_1:
+                return pygame.image.load(os.path.join('src', 'assets', 'white', 'grail.png'))
+            case Player.PLAYER_2:
+                return pygame.image.load(os.path.join('src', 'assets', 'black', 'grail.png'))
+    
+class CutLeftSprite:
+    def get_sprite(self, player: Player) -> Surface:
+        match player:
+            case Player.PLAYER_1:
+                return pygame.image.load(os.path.join('src', 'assets', 'white', 'slash-left.png'))
+            case Player.PLAYER_2:
+                return pygame.image.load(os.path.join('src', 'assets', 'black', 'slash-left.png'))
+class CutRightSprite:
+    def get_sprite(self, player: Player) -> Surface:
+        match player:
+            case Player.PLAYER_1:
+                return pygame.image.load(os.path.join('src', 'assets', 'white', 'slash-right.png'))
+            case Player.PLAYER_2:
+                return pygame.image.load(os.path.join('src', 'assets', 'black', 'slash-right.png'))
+    
+class SwordSprite:
+    def get_sprite(self, player: Player) -> Surface:
+        match player:
+            case Player.PLAYER_1:
+                return pygame.image.load(os.path.join('src', 'assets', 'white', 'sword.png'))
+            case Player.PLAYER_2:
+                return pygame.image.load(os.path.join('src', 'assets', 'black', 'sword.png'))
+    
+class BowSprite:
+    def get_sprite(self, player: Player) -> Surface:
+        match player:
+            case Player.PLAYER_1:
+                return pygame.image.load(os.path.join('src', 'assets', 'white', 'bow.png'))
+            case Player.PLAYER_2:
+                return pygame.image.load(os.path.join('src', 'assets', 'black', 'bow.png'))
+    
+class DaggerSprite:
+    def get_sprite(self, player: Player) -> Surface:
+        match player:
+            case Player.PLAYER_1:
+                return pygame.image.load(os.path.join('src', 'assets', 'white', 'dagger.png'))
+            case Player.PLAYER_2:
+                return pygame.image.load(os.path.join('src', 'assets', 'black', 'dagger.png'))
+    
 # --- MARK: PieceFactories
 class BoardPieceFactory(Protocol):
     @classmethod
@@ -608,7 +657,7 @@ class BoardPieceFactory(Protocol):
     ) -> Piece: ...
 
 
-class BoardPieceDefaultFactory(BoardPieceFactory):
+class BoardPieceDefaultFactory:
     @classmethod
     def make(
         cls,
@@ -621,27 +670,46 @@ class BoardPieceDefaultFactory(BoardPieceFactory):
         match pk:
             case PieceKind.PAWN:
                 return Piece(pk, location, PawnSprite(), position, size, player)
-            case PieceKind.KING:
-                return Piece(pk, location, KingSprite(), position, size, player)
+            case PieceKind.GRAIL:
+                return Piece(pk, location, GrailSprite(), position, size, player)
             case PieceKind.LANCE:
                 return Piece(pk, location, LanceSprite(), position, size, player)
-
+            case PieceKind.CUT_LEFT:
+                return Piece(pk, location, CutLeftSprite(), position, size, player)
+            case PieceKind.CUT_RIGHT:
+                return Piece(pk, location, CutRightSprite(), position, size, player)
+            case PieceKind.SWORD:
+                return Piece(pk, location, SwordSprite(), position, size, player)
+            case PieceKind.BOW:
+                return Piece(pk, location, BowSprite(), position, size, player)
+            case PieceKind.DAGGER:
+                return Piece(pk, location, DaggerSprite(), position, size, player)
 
 class CapturedPieceFactory(Protocol):
     @classmethod
-    def make(cls, pk: PieceKind, position: Position, size: int) -> CapturedPiece: ...
+    def make(cls, pk: PieceKind, position: Position, size: int, player: Player) -> CapturedPiece: ...
 
 
-class CapturedPieceDefaultFactory(CapturedPieceFactory):
+class CapturedPieceDefaultFactory:
     @classmethod
-    def make(cls, pk: PieceKind, position: Position, size: int) -> CapturedPiece:
+    def make(cls, pk: PieceKind, position: Position, size: int, player: Player) -> CapturedPiece:
         match pk:
             case PieceKind.PAWN:
-                return CapturedPiece(pk, PawnSprite(), position, size)
-            case PieceKind.KING:
-                return CapturedPiece(pk, KingSprite(), position, size)
+                return CapturedPiece(pk, PawnSprite(), position, size, player)
+            case PieceKind.GRAIL:
+                return CapturedPiece(pk, GrailSprite(), position, size, player)
             case PieceKind.LANCE:
-                return CapturedPiece(pk, LanceSprite(), position, size)
+                return CapturedPiece(pk, LanceSprite(), position, size, player)
+            case PieceKind.CUT_LEFT:
+                return CapturedPiece(pk, CutLeftSprite(), position, size, player)
+            case PieceKind.CUT_RIGHT:
+                return CapturedPiece(pk, CutRightSprite(), position, size, player)
+            case PieceKind.SWORD:
+                return CapturedPiece(pk, SwordSprite(), position, size, player)
+            case PieceKind.BOW:
+                return CapturedPiece(pk, BowSprite(), position, size, player)
+            case PieceKind.DAGGER:
+                return CapturedPiece(pk, DaggerSprite(), position, size, player)
 
 
 # --- MARK: BoardGameView

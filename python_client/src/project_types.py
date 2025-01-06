@@ -57,8 +57,13 @@ class Player(StrEnum):
 
 class PieceKind(StrEnum):
     PAWN = 'Pawn'
-    KING = 'King'
+    GRAIL = 'Grail'
     LANCE = 'Lance'
+    CUT_LEFT = 'CutLeft'
+    CUT_RIGHT = 'CutRight'
+    SWORD = 'Sword'
+    BOW = 'Bow'
+    DAGGER = 'Dagger'
 
 
 # --- MARK: Location

@@ -105,14 +105,21 @@ class Piece(Sprite):
         position: Position,
         size: int,
         owned_by: Player,
+        client_by: Player,
     ):
         super().__init__()
         self._piece_kind = piece_kind
         self._location = location
         self._owned_by = owned_by
-        self.image = pygame.transform.scale(
-            image.get_sprite(self._owned_by), (size, size)
-        )
+
+        # flip image for Player 2
+        self.image = pygame.transform.scale(image.get_sprite(self._owned_by), (size, size)) if client_by == Player.PLAYER_1 else \
+            pygame.transform.flip(
+                pygame.transform.scale(image.get_sprite(self._owned_by), (size, size)),
+                True,
+                False
+            )
+        
         self._position = position
         self._last_stable_position = self._position
         self._size = size
@@ -362,7 +369,13 @@ class CapturedPiece(Sprite):
 
         self._position = position
         self._last_stable_position = position
-        self.image = pygame.transform.scale(image.get_sprite(owned_by), (size, size))
+        # flip image for Player 2
+        self.image = pygame.transform.scale(image.get_sprite(owned_by), (size, size)) if owned_by == Player.PLAYER_1 else \
+            pygame.transform.flip(
+                pygame.transform.scale(image.get_sprite(owned_by), (size, size)),
+                True,
+                False
+            )
 
     @property
     def piece_kind(self) -> PieceKind:
@@ -702,6 +715,7 @@ class BoardPieceFactory(Protocol):
         size: int,
         player: Player,
         location: Location,
+        client_player: Player,
     ) -> Piece: ...
 
 
@@ -714,24 +728,25 @@ class BoardPieceDefaultFactory:
         size: int,
         player: Player,
         location: Location,
+        client_player: Player,
     ) -> Piece:
         match pk:
             case PieceKind.PAWN:
-                return Piece(pk, location, PawnSprite(), position, size, player)
+                return Piece(pk, location, PawnSprite(), position, size, player, client_player)
             case PieceKind.GRAIL:
-                return Piece(pk, location, GrailSprite(), position, size, player)
+                return Piece(pk, location, GrailSprite(), position, size, player, client_player)
             case PieceKind.LANCE:
-                return Piece(pk, location, LanceSprite(), position, size, player)
+                return Piece(pk, location, LanceSprite(), position, size, player, client_player)
             case PieceKind.FLAG_LEFT:
-                return Piece(pk, location, FlagLeftSprite(), position, size, player)
+                return Piece(pk, location, FlagLeftSprite(), position, size, player, client_player)
             case PieceKind.FLAG_RIGHT:
-                return Piece(pk, location, FlagRightSprite(), position, size, player)
+                return Piece(pk, location, FlagRightSprite(), position, size, player, client_player)
             case PieceKind.SWORD:
-                return Piece(pk, location, SwordSprite(), position, size, player)
+                return Piece(pk, location, SwordSprite(), position, size, player, client_player)
             case PieceKind.BOW:
-                return Piece(pk, location, BowSprite(), position, size, player)
+                return Piece(pk, location, BowSprite(), position, size, player, client_player)
             case PieceKind.DAGGER:
-                return Piece(pk, location, DaggerSprite(), position, size, player)
+                return Piece(pk, location, DaggerSprite(), position, size, player, client_player)
 
 
 class CapturedPieceFactory(Protocol):
@@ -841,6 +856,7 @@ class BoardGameView:
                 self._grid.cell_length,
                 piece_data.player,
                 location,
+                self._player,
             )
 
     # register move observer (usually from controller)
@@ -1172,6 +1188,7 @@ class BoardGameView:
                     self._grid.cell_length,
                     self._player,
                     fb.place_dest,
+                    self._player
                 )
             case _:
                 self._capture_box.reset_captured_pieces()

@@ -957,7 +957,6 @@ class BoardGameView:
 
                             case 3:
                                 if active_piece_index is not None:
-                                    # print("should reset")
                                     for loc in self._pieces.keys():
                                         piece_to_check = self._pieces[loc]
                                         if active_piece_index == loc:
@@ -1022,14 +1021,12 @@ class BoardGameView:
                                         event.pos
                                     )
 
-                                    # todo: validate move through model
                                     if snap_cell is None:
                                         self._capture_box.reset_captured_pieces()
                                     else:
                                         new_cell_location: Location = (
                                             self._grid.get_location_from_cell(snap_cell)
                                         )
-                                        print(new_cell_location)
                                         self._active_cell_to_snap = snap_cell
                                         self._place_piece(
                                             cap_piece.piece_kind,

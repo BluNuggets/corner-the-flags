@@ -13,9 +13,7 @@ from project_types import (
     Player,
     PieceKind,
     MoveFeedback,
-    MoveFeedbackInfo,
     PlaceFeedback,
-    PlaceFeedbackInfo,
     GameMessageType,
     GameMessageDict,
     GameMessageContentDict,
@@ -24,7 +22,6 @@ from project_types import (
 # --- MARK: BoardGameControler
 
 
-# todo: rename BoardGameController with actual board game name
 class BoardGameController:
     _model: BoardGameModel
     _view: BoardGameView
@@ -48,16 +45,12 @@ class BoardGameController:
         view.register_move_piece_observer(self)
         view.register_place_piece_observer(self)
         view.register_receive_message_observer(self)
-        print('temporary print - controller.start()')
 
         view.run(self._networking)
 
     def on_move_piece(self, old: Location, new: Location, player: Player) -> None:
         feedback: MoveFeedback = self._model.move_piece(old, new, player)
         self._on_state_change(self._model)
-        print(
-            f'model says that the move is {"Valid" if feedback.info == MoveFeedbackInfo.VALID else "Invalid"}'
-        )
         self._view.update_move(feedback)
 
         # ---
@@ -81,9 +74,6 @@ class BoardGameController:
     ) -> None:
         feedback: PlaceFeedback = self._model.place_piece(piece_kind, dest, player)
         self._on_state_change(self._model)
-        print(
-            f'model says that the place is {"Valid" if feedback.info == PlaceFeedbackInfo.VALID else "Invalid"}'
-        )
         self._view.update_place(feedback)
 
         # ---
@@ -104,13 +94,12 @@ class BoardGameController:
     def on_receive_message(self, message: Message) -> None:
         if self._networking is not None:
             if self._networking.player_id != message.source:
-                print(f'Message from Player {message.source}: {message.payload}')
+                # print(f'Message from Player {message.source}: {message.payload}')
                 game_message: GameMessage = GameMessageFactory.make(message.payload)
 
                 message_type: GameMessageType = game_message.message_type
                 message_content: GameMessageContent = game_message.message_content
 
-                # todo: figure out how to apply OCP (subtype polymorphism) for converting strings to Python objects
                 match GameMessageType(message_type):
                     case GameMessageType.MOVE:
                         if message_content.move_src is None:
@@ -227,12 +216,7 @@ class GameMessageFactory:
     def make(cls, data_raw: str) -> GameMessage:
         # ensure that data is a valid GameMessageDict; no way to actually enforce in Python other than this
         try:
-            # todo: check if type hint actually holds
             data: GameMessageDict = json.loads(data_raw)
-            """
-            if type(data) != GameMessageDict:
-                raise RuntimeError()
-            """
         except json.JSONDecodeError:
             raise RuntimeError(
                 'Error: JSON string does not follow the GameMessageDict format.'

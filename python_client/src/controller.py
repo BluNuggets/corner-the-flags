@@ -156,7 +156,7 @@ class BoardGameController:
                             player,
                         )
                     case GameMessageType.INVALID:
-                        pass
+                        return
 
     def _on_state_change(self, state: GameState) -> None:
         for observer in self._game_state_observers:
@@ -232,29 +232,40 @@ class GameMessageFactory:
         try:
             data: GameMessageDict = json.loads(data_raw)
         except json.JSONDecodeError:
-            raise RuntimeError(
-                'Error: JSON string does not follow the GameMessageDict format.'
+            return GameMessage(
+                GameMessageType.INVALID,
+                GameMessageContent()
             )
         except Exception:
-            raise RuntimeError('Error: Unhandled exception in parsing JSON string.')
+            return GameMessage(
+                GameMessageType.INVALID,
+                GameMessageContent()
+            )
 
-        # extract keys from GameMessage
-        # note: has a chance for uncaught errors if data doesn't throw an exception but is not of type GameMessageDict
-        if 'message_type' not in data or 'message_content' not in data:
-            message_type: GameMessageType = GameMessageType.INVALID
-            message_content: GameMessageContentDict = {}
-        else:
-            message_type = data['message_type']
-            message_content = data['message_content']
+        try:
+            # extract keys from GameMessage
+            # note: has a chance for uncaught errors if data doesn't throw an exception but is not of type GameMessageDict
+            if 'message_type' not in data or 'message_content' not in data:
+                message_type: GameMessageType = GameMessageType.INVALID
+                message_content: GameMessageContentDict = {}
+            else:
+                message_type = data['message_type']
+                message_content = data['message_content']
 
-        # make message content based on message type
-        match message_type:
-            case GameMessageType.INVALID:
-                raise RuntimeError(
-                    'Error: Value of message_type does not correspond to a valid message type.'
-                )
-            case _:
-                return GameMessage(
-                    message_type,
-                    GameMessageContent(message_content),
-                )
+            # make message content based on message type
+            match message_type:
+                case GameMessageType.INVALID:
+                    return GameMessage(
+                        GameMessageType.INVALID,
+                        GameMessageContent()
+                    )
+                case _:
+                    return GameMessage(
+                        message_type,
+                        GameMessageContent(message_content),
+                    )
+        except:
+            return GameMessage(
+                GameMessageType.INVALID,
+                GameMessageContent()
+            )

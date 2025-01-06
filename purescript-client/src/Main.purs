@@ -25,6 +25,7 @@ cols = 10
 rows :: Int
 rows = 10
 
+-- Multiple actions can be done per turn
 actionsPerTurn :: Int
 actionsPerTurn = 3
 
@@ -242,8 +243,8 @@ data PieceKind
   = Grail
   | Lance
   | Pawn
-  | SlashLeft
-  | SlashRight
+  | CutLeft
+  | CutRight
   | Sword
   | Bow
   | Dagger
@@ -277,8 +278,8 @@ pieceKindToString :: PieceKind -> String
 pieceKindToString Grail = "Grail"
 pieceKindToString Lance = "Lance"
 pieceKindToString Pawn = "Pawn"
-pieceKindToString SlashRight = "SlashRight"
-pieceKindToString SlashLeft = "SlashLeft"
+pieceKindToString CutRight = "CutRight"
+pieceKindToString CutLeft = "CutLeft"
 pieceKindToString Sword = "Sword"
 pieceKindToString Bow = "Bow"
 pieceKindToString Dagger = "Dagger"
@@ -287,8 +288,8 @@ pieceKindFromString :: String -> Maybe PieceKind
 pieceKindFromString "Grail" = Just Grail
 pieceKindFromString "Lance" = Just Lance
 pieceKindFromString "Pawn" = Just Pawn
-pieceKindFromString "SlashRight" = Just SlashRight
-pieceKindFromString "SlashLeft" = Just SlashLeft
+pieceKindFromString "CutRight" = Just CutRight
+pieceKindFromString "CutLeft" = Just CutLeft
 pieceKindFromString "Sword" = Just Sword
 pieceKindFromString "Bow" = Just Bow
 pieceKindFromString "Dagger" = Just Dagger
@@ -336,7 +337,7 @@ instance Pieceable PieceKind where
       , movements
       , isProtected: false
       }
-  getPieceInfo SlashRight =
+  getPieceInfo CutRight =
     let
       drs = ((-1) .. 1)
       dcs = (0 .. 1)
@@ -346,11 +347,11 @@ instance Pieceable PieceKind where
           # foldl (<>) []
           # filter (_ /= newLocation 0 0)
     in
-      { pieceKind: SlashRight
+      { pieceKind: CutRight
       , movements
       , isProtected: true
       }
-  getPieceInfo SlashLeft =
+  getPieceInfo CutLeft =
     let
       drs = ((-1) .. 1)
       dcs = ((-1) .. 0)
@@ -360,7 +361,7 @@ instance Pieceable PieceKind where
           # foldl (<>) []
           # filter (_ /= newLocation 0 0)
     in
-      { pieceKind: SlashLeft
+      { pieceKind: CutLeft
       , movements
       , isProtected: true
       }
@@ -423,10 +424,10 @@ instance Pieceable PieceKind where
   getImagePath Lance Player2 = "assets/black/lance.png"
   getImagePath Pawn Player1 = "assets/white/pawn.png"
   getImagePath Pawn Player2 = "assets/black/pawn.png"
-  getImagePath SlashLeft Player1 = "assets/white/slash-left.png"
-  getImagePath SlashLeft Player2 = "assets/black/slash-left.png"
-  getImagePath SlashRight Player1 = "assets/white/slash-right.png"
-  getImagePath SlashRight Player2 = "assets/black/slash-right.png"
+  getImagePath CutLeft Player1 = "assets/white/cut-left.png"
+  getImagePath CutLeft Player2 = "assets/black/cut-left.png"
+  getImagePath CutRight Player1 = "assets/white/cut-right.png"
+  getImagePath CutRight Player2 = "assets/black/cut-right.png"
   getImagePath Sword Player1 = "assets/white/sword.png"
   getImagePath Sword Player2 = "assets/black/sword.png"
 
@@ -443,10 +444,10 @@ imagePaths =
   , "assets/black/lance.png"
   , "assets/white/pawn.png"
   , "assets/black/pawn.png"
-  , "assets/white/slash-left.png"
-  , "assets/black/slash-left.png"
-  , "assets/white/slash-right.png"
-  , "assets/black/slash-right.png"
+  , "assets/white/cut-left.png"
+  , "assets/black/cut-left.png"
+  , "assets/white/cut-right.png"
+  , "assets/black/cut-right.png"
   , "assets/white/sword.png"
   , "assets/black/sword.png"
   ]
@@ -630,8 +631,8 @@ initialState = do
     , createPiece Grail Player1 (newLocation 9 7)
     , createPiece Bow Player1 (newLocation 9 3)
     , createPiece Bow Player1 (newLocation 9 6)
-    , createPiece SlashRight Player1 (newLocation 9 0)
-    , createPiece SlashLeft Player1 (newLocation 9 9)
+    , createPiece CutRight Player1 (newLocation 9 0)
+    , createPiece CutLeft Player1 (newLocation 9 9)
     ,
       -- Player 2
       createPiece Pawn Player2 (newLocation 2 0)
@@ -654,8 +655,8 @@ initialState = do
     , createPiece Grail Player2 (newLocation 0 7)
     , createPiece Bow Player2 (newLocation 0 3)
     , createPiece Bow Player2 (newLocation 0 6)
-    , createPiece SlashRight Player2 (newLocation 0 0)
-    , createPiece SlashLeft Player2 (newLocation 0 9)
+    , createPiece CutRight Player2 (newLocation 0 0)
+    , createPiece CutLeft Player2 (newLocation 0 9)
     ]
 
   pure

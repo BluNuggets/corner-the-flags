@@ -66,14 +66,6 @@ class FlagLeftMovement:
         self._player = player
 
     @property
-    def _forward(self) -> int:
-        match self._player:
-            case Player.PLAYER_1:
-                return 1
-            case Player.PLAYER_2:
-                return -1
-
-    @property
     def _abs_left(self) -> int:
         return -1
 
@@ -81,10 +73,11 @@ class FlagLeftMovement:
         return {
             Location(dr, dc)
             for (dr, dc) in [
-                (1, 0),
                 (-1, 0),
-                (self._forward, self._abs_left),
+                (1, 0),
+                (-1, self._abs_left),
                 (0, self._abs_left),
+                (1, self._abs_left),
             ]
         }
 
@@ -96,14 +89,6 @@ class FlagRightMovement:
         self._player = player
 
     @property
-    def _forward(self) -> int:
-        match self._player:
-            case Player.PLAYER_1:
-                return 1
-            case Player.PLAYER_2:
-                return -1
-
-    @property
     def _abs_right(self) -> int:
         return 1
 
@@ -113,8 +98,9 @@ class FlagRightMovement:
             for (dr, dc) in [
                 (1, 0),
                 (-1, 0),
-                (self._forward, self._abs_right),
+                (-1, self._abs_right),
                 (0, self._abs_right),
+                (1, self._abs_right),
             ]
         }
 

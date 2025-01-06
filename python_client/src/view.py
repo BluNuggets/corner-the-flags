@@ -1097,7 +1097,7 @@ class BoardGameView:
         networking: CS150241ProjectNetworking | None,
     ) -> None:
         for observer in self._move_piece_observers:
-            observer.on_move_piece(old, new, self._player)
+            observer.on_move_piece(old, new, player)
 
         if networking is not None:
             message_content: MakeMoveGameMessageContentDict = {

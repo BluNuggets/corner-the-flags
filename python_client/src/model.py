@@ -501,10 +501,6 @@ class BoardSetter:
 # --- MARK: BoardGameFrozenGameState
 
 
-# todo: finalize distinction between Model and State
-# possibly combine into a single class, depending on following "simplicity" vs following SRP
-# board is generally meant to update dict-wise (mutable except as property output, add/remove dict keys)
-# player_to_move, turn, move are generally meant to update state-wise (immutable, "increment" every turn)
 @dataclass(frozen=True)
 class BoardGameFrozenGameState:
     _max_moves: int
@@ -532,7 +528,6 @@ class BoardGameFrozenGameState:
 # --- MARK: Board Game Model
 
 
-# todo: rename BoardGameModel with actual board game name
 class BoardGameModel:
     # non-state "constants"
     _player: Player
@@ -778,7 +773,6 @@ class BoardGameModel:
 
             dest_piece: Piece | None = self._board.get_piece(dest)
             if dest_piece is not None:
-                # todo: verify piece capture logic
                 match dest_piece.player:
                     case Player.PLAYER_1:
                         receiving_player: Player = Player.PLAYER_2

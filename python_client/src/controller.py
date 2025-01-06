@@ -169,23 +169,16 @@ class GameMessageContent:
 
 
 class GameMessage:
-    _frame: int
     _message_type: GameMessageType
     _message_content: GameMessageContent
 
     def __init__(
         self,
-        frame: int,
         message_type: GameMessageType,
         message_content: GameMessageContent,
     ) -> None:
-        self._frame = frame
         self._message_type = message_type
         self._message_content = message_content
-
-    @property
-    def frame(self) -> int:
-        return self._frame
 
     @property
     def message_type(self) -> GameMessageType:
@@ -216,7 +209,6 @@ class GameMessageFactory:
 
         # extract keys from GameMessage
         # note: has a chance for uncaught errors if data doesn't throw an exception but is not of type GameMessageDict
-        frame: int = data['frame']
         message_type: GameMessageType = data['message_type']
         message_content: GameMessageContentDict = data['message_content']
 
@@ -228,7 +220,6 @@ class GameMessageFactory:
                 )
             case _:
                 return GameMessage(
-                    frame,
                     message_type,
                     GameMessageContent(message_content),
                 )

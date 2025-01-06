@@ -194,7 +194,6 @@ class PlaceFeedback:
 
 
 class GameMessageDict(TypedDict, total=True):
-    frame: int
     message_type: GameMessageType
     message_content: GameMessageContentDict
 

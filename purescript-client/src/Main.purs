@@ -27,7 +27,7 @@ rows = 10
 
 -- Multiple actions can be done per turn
 actionsPerTurn :: Int
-actionsPerTurn = 3
+actionsPerTurn = 100
 
 capturedPieceGap :: Number
 capturedPieceGap = 10.0
@@ -470,12 +470,30 @@ mirrorLocation location =
   , col: mirror 0 (cols - 1) location.col
   }
 
--- Mirrors deltas relative to 0 0
-mirrorDelta :: Location -> Location
-mirrorDelta location =
+-- Mirrors deltas relative to y = 0
+mirrorDeltaVertically :: Location -> Location
+mirrorDeltaVertically location =
   { row: mirror (1 - rows) (rows - 1) location.row
-  , col: mirror (1 - cols) (cols - 1) location.col
+  , col: location.col
   }
+
+-- Mirrors images relative to x = 0
+drawHorizontallyMirroredImage
+  :: Canvas.Context2D
+  -> Canvas.CanvasImageSource
+  -> { x :: Number
+     , y :: Number
+     , imgWidth :: Number
+     , imgHeight :: Number
+     }
+  -> Effect Unit
+
+drawHorizontallyMirroredImage ctx img { x, y, imgWidth, imgHeight } = do
+  Canvas.save ctx
+  Canvas.translate ctx { translateX: x + imgWidth, translateY: y }
+  Canvas.scale ctx { scaleX: (-1.0), scaleY: 1.0 }
+  drawImageScaled ctx img { x: 0.0, y: 0.0, width: imgWidth, height: imgHeight }
+  Canvas.restore ctx
 
 posToLocation :: Int -> Int -> Location
 posToLocation y x =
@@ -521,7 +539,7 @@ getAllMovements :: PlayerId -> Location -> Array Location -> Array Location
 getAllMovements player location deltas =
   case player of
     Player1 -> deltas <#> (add location)
-    Player2 -> deltas <#> mirrorDelta <#> (add location)
+    Player2 -> deltas <#> mirrorDeltaVertically <#> (add location)
 
 -- Game Over Definitions
 data GameOverState
@@ -1118,7 +1136,10 @@ onRender images ctx gameState = do
     in
       case lookupResult of
         Nothing -> pure unit
-        Just img -> drawImageScaled ctx img { x, y, width: tileLength, height: tileLength }
+        Just img ->
+          case player of
+            Player1 -> drawImageScaled ctx img { x, y, width: tileLength, height: tileLength }
+            Player2 -> drawHorizontallyMirroredImage ctx img { x, y, imgWidth: tileLength, imgHeight: tileLength }
 
   renderPieces :: PlayerId -> Array Piece -> Effect Unit
   renderPieces player pieces =

@@ -731,8 +731,6 @@ checkGameOver state =
 
 onTick :: (String -> Effect Unit) -> GameState -> Effect GameState
 onTick send gameState = do
-  log $ "Debug: " <> gameState.debugString
-
   if (not gameState.sentPing) then do
     send $ JSON.writeJSON $ createPingPayload gameState
     pure $ gameState { tickCount = gameState.tickCount + 1, sentPing = true }
@@ -978,17 +976,13 @@ onMouseDown send { x, y } gameState =
         Player1 -> posToLocation y x
         Player2 -> mirrorLocation $ posToLocation y x
 
-    log $ show clickLocation
-
     case state.activePieceIndex, state.activeCapturedPieceIndex of
       Just index, Nothing -> movePiece clickLocation index eState
       Nothing, Just index -> placeCapturedPiece clickLocation index eState
       _, _ -> pure $ selectPiece clickLocation state
 
 onKeyDown :: (String -> Effect Unit) -> String -> GameState -> Effect GameState
-onKeyDown send key gameState = do
-  send $ "I pressed " <> key
-  pure gameState
+onKeyDown _ _ gameState = pure gameState
 
 onKeyUp :: (String -> Effect Unit) -> String -> GameState -> Effect GameState
 onKeyUp _ _ gameState = pure gameState

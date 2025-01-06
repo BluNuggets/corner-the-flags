@@ -470,6 +470,18 @@ mirrorLocation location =
   , col: mirror 0 (cols - 1) location.col
   }
 
+mirrorLocationVertically :: Location -> Location
+mirrorLocationVertically location =
+  { row: mirror 0 (rows - 1) location.row
+  , col: location.col
+  }
+
+translateLocation :: Int -> Int -> Location -> Location
+translateLocation deltaX deltaY location =
+  { row: location.row + deltaX
+  , col: location.col + deltaY
+  }
+
 -- Mirrors deltas relative to y = 0
 mirrorDeltaVertically :: Location -> Location
 mirrorDeltaVertically location =
@@ -550,18 +562,16 @@ data GameOverState
 -- Message Formats
 
 type MovePayload =
-  { frame :: Int
-  , message_type :: String
+  { message_type :: String
   , message_content ::
       { move_src :: Location
       , move_dest :: Location
       }
   }
 
-createMovePayload :: GameState -> Location -> Location -> MovePayload
-createMovePayload state srcLocation destLocation =
-  { frame: state.tickCount
-  , message_type: "move"
+createMovePayload :: Location -> Location -> MovePayload
+createMovePayload srcLocation destLocation =
+  { message_type: "move"
   , message_content:
       { move_src: srcLocation
       , move_dest: destLocation
@@ -569,18 +579,16 @@ createMovePayload state srcLocation destLocation =
   }
 
 type PlacePayload =
-  { frame :: Int
-  , message_type :: String
+  { message_type :: String
   , message_content ::
       { place_piece_kind :: String
       , place_dest :: Location
       }
   }
 
-createPlacePayload :: GameState -> PieceKind -> Location -> PlacePayload
-createPlacePayload state pieceKind destLocation =
-  { frame: state.tickCount
-  , message_type: "place"
+createPlacePayload :: PieceKind -> Location -> PlacePayload
+createPlacePayload pieceKind destLocation =
+  { message_type: "place"
   , message_content:
       { place_piece_kind: pieceKindToString pieceKind
       , place_dest: destLocation
@@ -588,14 +596,14 @@ createPlacePayload state pieceKind destLocation =
   }
 
 type PingPayload =
-  { frame :: Int
-  , message_type :: String
+  { message_type :: String
+  , message_content :: {}
   }
 
-createPingPayload :: GameState -> PingPayload
-createPingPayload state =
-  { frame: state.tickCount
-  , message_type: "ping"
+createPingPayload :: PingPayload
+createPingPayload =
+  { message_type: "ping"
+  , message_content: {}
   }
 
 -- Game state and logic
@@ -732,7 +740,7 @@ checkGameOver state =
 onTick :: (String -> Effect Unit) -> GameState -> Effect GameState
 onTick send gameState = do
   if (not gameState.sentPing) then do
-    send $ JSON.writeJSON $ createPingPayload gameState
+    send $ JSON.writeJSON $ createPingPayload
     pure $ gameState { tickCount = gameState.tickCount + 1, sentPing = true }
   else
     pure $ gameState { tickCount = gameState.tickCount + 1 }
@@ -884,7 +892,7 @@ onMouseDown send { x, y } gameState =
       Just result ->
         case result.place_piece_kind, result.place_dest of
           Just kind, Just dest -> do
-            send $ JSON.writeJSON $ createPlacePayload result.newState kind dest
+            send $ JSON.writeJSON $ createPlacePayload kind (translateLocation 1 1 $ mirrorLocationVertically dest)
             pure result.newState
           _, _ -> pure result.newState
       Nothing -> pure state
@@ -947,7 +955,7 @@ onMouseDown send { x, y } gameState =
       Just result ->
         case result.move_src, result.move_dest of
           Just src, Just dest -> do
-            send $ JSON.writeJSON $ createMovePayload result.newState src dest
+            send $ JSON.writeJSON $ createMovePayload (translateLocation 1 1 $ mirrorLocationVertically src) (translateLocation 1 1 $ mirrorLocationVertically dest)
             pure result.newState
           _, _ -> pure result.newState
       Nothing -> pure state
@@ -1013,23 +1021,26 @@ onMessage _ message gameState = do
   handleMoveMessage payload state =
     let
       { move_src, move_dest } = payload.message_content
-      src = move_src
-      dest = move_dest
+      src = mirrorLocationVertically $ translateLocation (-1) (-1) move_src
+      dest = mirrorLocationVertically $ translateLocation (-1) (-1) move_dest
 
       initialPieces = state.pieces
 
-      mNewState = do
-        piece <- getPieceAtLocation initialPieces src
-        index <- getPieceIndex initialPieces piece
-        piecesAfterMove <- updateAt index (piece { location = dest }) initialPieces
+      mNewState =
+        if src /= dest then do
+          piece <- getPieceAtLocation initialPieces src
+          index <- getPieceIndex initialPieces piece
+          piecesAfterMove <- updateAt index (piece { location = dest }) initialPieces
 
-        case getPieceAtLocation initialPieces dest of
-          Just capturedPiece -> do
-            capturedIndex <- getPieceIndex initialPieces capturedPiece
-            piecesAfterCapture <- deleteAt capturedIndex piecesAfterMove
-            pure $ (updateTurnActions state) { pieces = piecesAfterCapture }
-          Nothing ->
-            pure $ (updateTurnActions state) { pieces = piecesAfterMove }
+          case getPieceAtLocation initialPieces dest of
+            Just capturedPiece -> do
+              capturedIndex <- getPieceIndex initialPieces capturedPiece
+              piecesAfterCapture <- deleteAt capturedIndex piecesAfterMove
+              pure $ (updateTurnActions state) { pieces = piecesAfterCapture }
+            Nothing ->
+              pure $ (updateTurnActions state) { pieces = piecesAfterMove }
+        else
+          Nothing
     in
       case mNewState of
         Just newState -> newState
@@ -1048,7 +1059,7 @@ onMessage _ message gameState = do
   handlePlaceMessage payload player state =
     let
       { place_piece_kind, place_dest } = payload.message_content
-      dest = place_dest
+      dest = mirrorLocationVertically $ translateLocation (-1) (-1) place_dest
 
       newState = case pieceKindFromString place_piece_kind of
         Just pieceKind ->

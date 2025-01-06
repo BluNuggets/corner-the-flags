@@ -609,16 +609,16 @@ class CutLeftSprite:
     def get_sprite(self, player: Player) -> Surface:
         match player:
             case Player.PLAYER_1:
-                return pygame.image.load(os.path.join('src', 'assets', 'white', 'slash-left.png'))
+                return pygame.image.load(os.path.join('src', 'assets', 'white', 'flag-left.png'))
             case Player.PLAYER_2:
-                return pygame.image.load(os.path.join('src', 'assets', 'black', 'slash-left.png'))
+                return pygame.image.load(os.path.join('src', 'assets', 'black', 'flag-left.png'))
 class CutRightSprite:
     def get_sprite(self, player: Player) -> Surface:
         match player:
             case Player.PLAYER_1:
-                return pygame.image.load(os.path.join('src', 'assets', 'white', 'slash-right.png'))
+                return pygame.image.load(os.path.join('src', 'assets', 'white', 'flag-right.png'))
             case Player.PLAYER_2:
-                return pygame.image.load(os.path.join('src', 'assets', 'black', 'slash-right.png'))
+                return pygame.image.load(os.path.join('src', 'assets', 'black', 'flag-right.png'))
     
 class SwordSprite:
     def get_sprite(self, player: Player) -> Surface:

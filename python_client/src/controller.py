@@ -232,15 +232,9 @@ class GameMessageFactory:
         try:
             data: GameMessageDict = json.loads(data_raw)
         except json.JSONDecodeError:
-            return GameMessage(
-                GameMessageType.INVALID,
-                GameMessageContent()
-            )
+            return GameMessage(GameMessageType.INVALID, GameMessageContent())
         except Exception:
-            return GameMessage(
-                GameMessageType.INVALID,
-                GameMessageContent()
-            )
+            return GameMessage(GameMessageType.INVALID, GameMessageContent())
 
         try:
             # extract keys from GameMessage
@@ -255,17 +249,11 @@ class GameMessageFactory:
             # make message content based on message type
             match message_type:
                 case GameMessageType.INVALID:
-                    return GameMessage(
-                        GameMessageType.INVALID,
-                        GameMessageContent()
-                    )
+                    return GameMessage(GameMessageType.INVALID, GameMessageContent())
                 case _:
                     return GameMessage(
                         message_type,
                         GameMessageContent(message_content),
                     )
-        except:
-            return GameMessage(
-                GameMessageType.INVALID,
-                GameMessageContent()
-            )
+        except Exception:
+            return GameMessage(GameMessageType.INVALID, GameMessageContent())

@@ -49,14 +49,16 @@ class BoardGameController:
         view.run(self._networking)
 
     def on_move_piece(self, old: Location, new: Location, player: Player) -> None:
+        # check if move is valid
+        is_move_valid: bool = self._model.is_move_valid(old, new, player)
+
         feedback: MoveFeedback = self._model.move_piece(old, new, player)
         self._on_state_change(self._model)
         self._view.update_move(feedback)
 
         # ---
 
-        is_move_valid: bool = self._model.is_move_valid(old, new, player)
-        # broadcast to other players if message originated from client + if move is valid
+        # broadcast to other players if message originated from client
         if self._networking is not None and player == self._model.player and is_move_valid:
             message_content: MakeMoveGameMessageContentDict = {
                 'move_src': {'row': old.row, 'col': old.column},
@@ -73,14 +75,16 @@ class BoardGameController:
     def on_place_piece(
         self, piece_kind: PieceKind, dest: Location, player: Player
     ) -> None:
+        # check if place is valid
+        is_place_valid: bool = self._model.is_place_valid(piece_kind, dest, player)
+
         feedback: PlaceFeedback = self._model.place_piece(piece_kind, dest, player)
         self._on_state_change(self._model)
         self._view.update_place(feedback)
 
         # ---
 
-        is_place_valid: bool = self._model.is_place_valid(piece_kind, dest, player)
-        # broadcast to other players if message originated from client + if place is valid
+        # broadcast to other players if message originated from client
         if self._networking is not None and player == self._model.player and is_place_valid:
             message_content: PlacePieceGameMessageContentDict = {
                 'place_piece_kind': piece_kind,
